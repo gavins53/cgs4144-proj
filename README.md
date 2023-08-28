@@ -1,10 +1,10 @@
 # cgs4144-proj
-Final project repo for CGS4144 Bioinformatic Algorithms
+This is the final project repository for CGS4144 - Bioinformatic Algorithms @ The University of Florida
 
 ## Contributors
-Gavin Sidhu
-Anand Mathi
-Don Chen
+- Gavin Sidhu
+- Anand Mathi
+- Don Chen
 
 ## Scientific Question
 
