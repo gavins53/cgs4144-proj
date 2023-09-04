@@ -7,12 +7,8 @@ This is the final project repository for CGS4144 - Bioinformatic Algorithms @ Th
 - Don Chen
 
 ## Scientific Question
-(WIP)
-- Effects of a certain drug on gene expression?
-- Effects of an environmental stressor on gene expression?
-- Which genes are expressed more in specific tissues/organs?
-- How does COPD (Chronic Obstructive Pulmonary Disease) stroma cause oncogenesis/tumorigenesis?
-  - Potential datasets: https://www.refine.bio/experiments/SRP116952/distinct-cancer-promoting-stromal-gene-expression-depending-on-lung-function and https://www.refine.bio/experiments/SRP125001/multi-omic-molecular-profiling-of-lung-cancer-risk-in-chronic-obstructive-pulmonary-disease
+Are there specific gene expression patterns in lung stroma that are associated with the presence of lung cancer in patients with COPD?
 
 ## Dataset
-(WIP)
+Multi-Omic Molecular Profiling of Lung Cancer Risk in Chronic Obstructive Pulmonary Disease
+https://www.refine.bio/experiments/SRP125001/multi-omic-molecular-profiling-of-lung-cancer-risk-in-chronic-obstructive-pulmonary-disease
