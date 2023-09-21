@@ -21,11 +21,37 @@ if (!("org.Hs.eg.db" %in% installed.packages())) {
   # Install this package if it isn't installed yet
   BiocManager::install("org.Hs.eg.db", update = FALSE)
 }
+
+if (!("DESeq2" %in% installed.packages())) {
+  # Install this package if it isn't installed yet
+  BiocManager::install("DESeq2", update = FALSE)
+}
+
+if (!("EnhancedVolcano" %in% installed.packages())) {
+  # Install this package if it isn't installed yet
+  BiocManager::install("EnhancedVolcano", update = FALSE)
+}
+
+if (!("apeglm" %in% installed.packages())) {
+  # Install this package if it isn't installed yet
+  BiocManager::install("apeglm", update = FALSE)
+}
+
 # Attach the library
 library(org.Hs.eg.db)
 # We will need this so we can use the pipe: %>%
 library(magrittr)
+
+library(DESeq2)
+
+library(EnhancedVolcano)
+
+library(apeglm)
+
+library(ggplot2)
+
 ```
+
 ```{r}
 # Initializing data variables
 
@@ -91,6 +117,7 @@ mapped_df <- mapped_list %>%
 
 head(mapped_df)
 ```
+
 ```{r}
 # Replace Ensembl names with Hugo symbols in new data frame, to be used for analysis
 expression_df <- expression_df %>%
@@ -101,6 +128,7 @@ expression_df <- expression_df %>%
 # Get dimensions of expression matrix
 cat(dim(expression_df))
 ```
+
 ```{r}
 # Log scale the data frame
 expression_df_log <- expression_df %>%
@@ -116,19 +144,211 @@ per_gene_medians <- expression_df_log %>%
 # Peek at the result
 head(per_gene_medians)
 ```
+
 ```{r}
 # Create a density plot of the median expression ranges
-library(ggplot2)
 ggplot(per_gene_medians, aes(x = Median)) +
   geom_density(fill = "blue", color = "black") +
   labs(title = "Density Plot of Median Expression Ranges",
        x = "Median Expression Range (Log2 Scale)",
        y = "Density")
 ```
+
 ```{r}
 # Step 2: Generating PCA and T-SNE plots
-library(DESeq2)
 
 
 ```
+
+```{r}
+
+# Step 3
+
+# Importing data and metadata
+
+set.seed(53)
+
+metadata <- read_tsv("data/SRP125001/metadata_SRP125001.tsv")
+
+expression_df <- read_tsv("data/SRP125001/SRP125001.tsv") %>%
+  column_to_rownames("Gene")
+
+expression_df <- expression_df %>%
+  dplyr::select(metadata$refinebio_accession_code)
+
+all.equal(colnames(expression_df), metadata$refinebio_accession_code)
+
+```
+
+```{r}
+
+# Setting up metadata
+
+metadata <- metadata %>%
+  # Obtain the type of tissue from the title variable and create its own column
+  dplyr::mutate(tissue_type = dplyr::case_when(
+    str_detect(refinebio_title, "Control_tissue") ~ "Control",
+    str_detect(refinebio_title, "_adjacent") ~ "Tumor_adjacent",
+    str_detect(refinebio_title, "Lung_tumor") ~ "Tumor"
+  ))
+
+dplyr::select(metadata, refinebio_title, tissue_type)
+
+```
+
+```{r}
+
+# Making tissue_type a factor variable
+
+metadata <- metadata %>%
+  dplyr::mutate(
+
+    tissue_type = factor(tissue_type, levels = c("Control", "Tumor_adjacent", "Tumor"))
+  )
+
+levels(metadata$tissue_type)
+
+```
+
+```{r}
+
+# Only keep genes with sufficient total counts
+
+filtered_expression_df <- expression_df %>%
+  dplyr::filter(rowSums(.) >= 10)
+
+```
+
+```{r}
+
+# Create DESeq2Dataset
+
+# Round expression counts to integers
+
+gene_matrix <- round(filtered_expression_df)
+
+ddset <- DESeqDataSetFromMatrix(
+
+  countData = gene_matrix,
+
+  colData = metadata,
+
+  design = ~tissue_type
+  
+)
+
+```
+
+```{r}
+
+# Running differential expression analysis
+
+deseq_object <- DESeq(ddset)
+
+```
+
+```{r}
+
+# Extract results table
+
+deseq_results <- results(deseq_object)
+
+head(deseq_results)
+
+resultsNames(deseq_object)
+
+```
+
+```{r}
+
+# Obtaining shrunken log fold change estimates
+
+deseq_results <- lfcShrink(deseq_object, coef = 3, res = deseq_results)
+
+head(deseq_results)
+
+```
+
+```{r}
+
+# Converting to data frame and tidying up
+deseq_df <- deseq_results %>%
+
+  as.data.frame() %>%
+
+  tibble::rownames_to_column("Gene") %>%
+
+  dplyr::mutate(threshold = padj < 0.05) %>%
+
+  dplyr::arrange(dplyr::desc(log2FoldChange))
+
+```
+
+```{r}
+head(deseq_df)
+```
+
+```{r}
+
+write_tsv(
+  deseq_df,
+  file.path(
+    "Results/",
+    "SRP125001_diff_expr_results.tsv")
+)
+
+```
+
+```{r}
+
+volcano_plot <- EnhancedVolcano::EnhancedVolcano(
+  deseq_df,
+  lab = deseq_df$Gene,
+  x = "log2FoldChange",
+  y = "padj",
+  pCutoff = 0.01
+)
+
+volcano_plot
+
+```
+
+```{r}
+
+# Saving volcano plot to png
+
+ggsave(
+  plot = volcano_plot,
+  file.path("Plots/", "SRP125001_volcano_plot.png")
+)
+```
+
+```{r}
+
+# Part 4 - Don start here
+# Differentially expressed genes located in 
+# Results/SRP125001_diff_expr_results.tsv
+
+# Or use variable deseq_df from Part 3
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
