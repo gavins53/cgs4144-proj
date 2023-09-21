@@ -1,0 +1,134 @@
+```{r}
+# Libraries
+
+# Install Bioconductor
+if (!require("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+BiocManager::install(version = "3.17")
+
+# Install tidyverse
+if (!require("tidyverse", quietly = TRUE)) {
+  install.packages("tidyverse")
+}
+
+# Install devtools from CRAN
+if (!require("devtools", quietly = TRUE)) {
+  install.packages("devtools")
+}
+
+# Install the Zebrafish package
+if (!("org.Hs.eg.db" %in% installed.packages())) {
+  # Install this package if it isn't installed yet
+  BiocManager::install("org.Hs.eg.db", update = FALSE)
+}
+# Attach the library
+library(org.Hs.eg.db)
+# We will need this so we can use the pipe: %>%
+library(magrittr)
+```
+```{r}
+# Initializing data variables
+
+# Define the file path to the data directory
+# Replace with the path of the folder the files will be in
+data_dir <- file.path("data", "SRP125001")
+
+# Declare the file path to the gene expression matrix file
+# inside directory saved as `data_dir`
+# Replace with the path to your dataset file
+data_file <- file.path(data_dir, "SRP125001.tsv")
+
+# Declare the file path to the metadata file
+# inside the directory saved as `data_dir`
+# Replace with the path to your metadata file
+metadata_file <- file.path(data_dir, "metadata_SRP125001.tsv")
+
+# Check if the gene expression matrix file is at the path stored in `data_file`
+file.exists(data_file)
+
+# Check if the metadata file is at the file path stored in `metadata_file`
+file.exists(metadata_file)
+```
+```{r}
+# Step 1: Initializing data, converting Ensembl IDs to Hugo gene names, & basic analysis
+# Read in metadata TSV file
+metadata <- readr::read_tsv(metadata_file)
+
+# Read in data TSV file
+expression_df <- readr::read_tsv(data_file) %>%
+  # Tuck away the Gene ID column as row names
+  tibble::column_to_rownames("Gene")
+
+# Make the data in the order of the metadata
+expression_df <- expression_df %>%
+  dplyr::select(metadata$refinebio_accession_code)
+
+# Check if this is in the same order
+all.equal(colnames(expression_df), metadata$refinebio_accession_code)
+
+# Bring back the "Gene" column in preparation for mapping
+expression_df <- expression_df %>%
+  tibble::rownames_to_column("Gene")
+
+# Map Ensembl IDs to their associated Hugo IDs
+mapped_list <- mapIds(
+  org.Hs.eg.db, # Replace with annotation package for your organism
+  keys = expression_df$Gene,
+  keytype = "ENSEMBL", # Replace with the type of gene identifiers in your data
+  column = "SYMBOL", # The type of gene identifiers you would like to map to
+  multiVals = "list"
+)
+
+head(mapped_list)
+```
+```{r}
+# Turn list to data frame
+mapped_df <- mapped_list %>%
+  tibble::enframe(name = "Ensembl", value = "HUGO") %>%
+  # enframe() makes a `list` column; we will simplify it with unnest()
+  # This will result in one row of our data frame per list item
+  tidyr::unnest(cols = HUGO)
+
+head(mapped_df)
+```
+```{r}
+# Replace Ensembl names with Hugo symbols in new data frame, to be used for analysis
+expression_df <- expression_df %>%
+  left_join(mapped_df, by = c("Gene" = "Ensembl")) %>%
+  mutate(Gene = ifelse(is.na(HUGO), Gene, HUGO)) %>%
+  dplyr::select(-HUGO)
+
+# Get dimensions of expression matrix
+cat(dim(expression_df))
+```
+```{r}
+# Log scale the data frame
+expression_df_log <- expression_df %>%
+  # Apply log transformation to all columns except the "Gene" column
+  mutate(across(-Gene, ~log(., base = 2)))
+
+# Calculate the row medians for each gene
+per_gene_medians <- expression_df_log %>%
+  rowwise() %>%
+  mutate(Median = median(c_across(-Gene))) %>%
+  dplyr::select(Gene, Median)
+
+# Peek at the result
+head(per_gene_medians)
+```
+```{r}
+# Create a density plot of the median expression ranges
+library(ggplot2)
+ggplot(per_gene_medians, aes(x = Median)) +
+  geom_density(fill = "blue", color = "black") +
+  labs(title = "Density Plot of Median Expression Ranges",
+       x = "Median Expression Range (Log2 Scale)",
+       y = "Density")
+```
+```{r}
+# Step 2: Generating PCA and T-SNE plots
+library(DESeq2)
+
+
+```
+
