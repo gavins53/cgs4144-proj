@@ -37,6 +37,11 @@ if (!("apeglm" %in% installed.packages())) {
   BiocManager::install("apeglm", update = FALSE)
 }
 
+# Install Rtsne
+if (!requireNamespace("Rtsne", quietly = TRUE)) {
+  install.packages("Rtsne")
+}
+
 # Attach the library
 library(org.Hs.eg.db)
 # We will need this so we can use the pipe: %>%
@@ -49,6 +54,8 @@ library(EnhancedVolcano)
 library(apeglm)
 
 library(ggplot2)
+
+library(Rtsne)
 
 ```
 
@@ -147,18 +154,85 @@ head(per_gene_medians)
 
 ```{r}
 # Create a density plot of the median expression ranges
-ggplot(per_gene_medians, aes(x = Median)) +
+ggplot(data = per_gene_medians, aes(x = Median)) +
   geom_density(fill = "blue", color = "black") +
   labs(title = "Density Plot of Median Expression Ranges",
        x = "Median Expression Range (Log2 Scale)",
        y = "Density")
+
+# Save the plot to a file
+ggsave(
+  filename = file.path("Plots", "SRP125001_per_gene_medians_density_plot.png"),
+  plot = last_plot(),
+  device = "png",
+)
+```
+```{r}
+all(colnames(expression_df_log) == metadata$refinebio_accession_code)
+unique(colnames(expression_df_log))
+unique(metadata$refinebio_accession_code)
+
+```
+
+
+```{r}
+# Step 2: Generating PCA and t-SNE plots
+
+# Combining cancer and cancer-adjacent under "Cancer" group
+metadata$Group <- ifelse(grepl("Lung_tumor", metadata$refinebio_title), "Cancer", "Non-Cancer")
+rounded_df <- round(expression_df[-1])
+dds <- DESeqDataSetFromMatrix(countData = rounded_df, colData = metadata, design = ~Group)
+dds <- DESeq(dds)
+vsd <- vst(dds)
+pcaData <- plotPCA(vsd, intgroup = "Group", returnData = TRUE)
+pcaData$Group <- NULL
+pcaData
+```
+```{r}
+percentVar <- round(100 * attr(pcaData, "percentVar"))
+
+ggplot(pcaData, aes(PC1, PC2, color=group)) +
+  geom_point(size=3) +
+  ggtitle("Principal Component Analysis of Cancerous & Non-Cancerous Samples") +
+  xlab(paste0("PC1: ",percentVar[1],"% variance")) +
+  ylab(paste0("PC2: ",percentVar[2],"% variance")) + 
+  coord_fixed()
+
+ggsave(
+  filename = file.path("Plots", "SRP125001_pca_plot.png"),
+  plot = last_plot(),
+  device = "png",
+)
+```
+```{r}
+# t-SNE
+set.seed(123) # for reproducibility
+vsd_matrix <- unique(assay(vsd))
+tsne_data <- Rtsne(vsd_matrix, perplexity = 30, verbose = TRUE)
+
+# Create a data frame with t-SNE coordinates
+tsne_df <- data.frame(PC1 = tsne_data$Y[, 1], PC2 = tsne_data$Y[, 2], Group = metadata$Group)
+
 ```
 
 ```{r}
-# Step 2: Generating PCA and T-SNE plots
+# Create the t-SNE plot
+# Create a scatterplot using ggplot2
+# t-SNE plot
+ggplot(tsne_df, aes(PC1, PC2, color = Group)) +
+  geom_point(size = 3) +
+  ggtitle("t-SNE Analysis of Cancerous & Non-Cancerous Samples") +
+  xlab("t-SNE 1") +
+  ylab("t-SNE 2") +
+  coord_fixed()
 
-
+ggsave(
+  filename = file.path("Plots", "SRP125001_t-sne_plot.png"),
+  plot = last_plot(),
+  device = "png",
+)
 ```
+
 
 ```{r}
 
