@@ -207,8 +207,8 @@ ggsave(
 ```{r}
 # t-SNE
 set.seed(123) # for reproducibility
-vsd_matrix <- unique(assay(vsd))
-tsne_data <- Rtsne(vsd_matrix, perplexity = 30, verbose = TRUE)
+vsd_matrix <- t(unique(assay(vsd)))
+tsne_data <- Rtsne(vsd_matrix, perplexity = 10, verbose = TRUE)
 
 # Create a data frame with t-SNE coordinates
 tsne_df <- data.frame(PC1 = tsne_data$Y[, 1], PC2 = tsne_data$Y[, 2], Group = metadata$Group)
@@ -217,11 +217,10 @@ tsne_df <- data.frame(PC1 = tsne_data$Y[, 1], PC2 = tsne_data$Y[, 2], Group = me
 
 ```{r}
 # Create the t-SNE plot
-# Create a scatterplot using ggplot2
 # t-SNE plot
 ggplot(tsne_df, aes(PC1, PC2, color = Group)) +
   geom_point(size = 3) +
-  ggtitle("t-SNE Analysis of Cancerous & Non-Cancerous Samples") +
+  ggtitle("t-SNE Plot of Cancerous & Non-Cancerous Samples") +
   xlab("t-SNE 1") +
   ylab("t-SNE 2") +
   coord_fixed()
