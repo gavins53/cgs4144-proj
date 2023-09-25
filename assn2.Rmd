@@ -57,6 +57,10 @@ library(ggplot2)
 
 library(Rtsne)
 
+library(ComplexHeatmap)
+
+library(circlize)
+
 ```
 
 ```{r}
@@ -188,6 +192,7 @@ pcaData <- plotPCA(vsd, intgroup = "Group", returnData = TRUE)
 pcaData$Group <- NULL
 pcaData
 ```
+
 ```{r}
 percentVar <- round(100 * attr(pcaData, "percentVar"))
 
@@ -404,24 +409,113 @@ ggsave(
 
 # Or use variable deseq_df from Part 3
 
+metadata <- read_tsv("data/SRP125001/metadata_SRP125001.tsv")
+
+expression_df <- read_tsv("data/SRP125001/SRP125001.tsv")
+
+deseq_df <- read_tsv("Results/SRP125001_diff_expr_results.tsv")
+
 
 ```
 
+```{r}
+# adjust p_value to use for the heat map
+p_value <- 0.0001
 
 
+# Grabs all of the significant genes.
+# p-value is very small otherwise it would grab a lot of genes and make the heat map hard to read.
+deseq_df_sig <- deseq_df[deseq_df$padj < p_value,]
+deseq_df_sig <- na.omit(deseq_df_sig)
+
+# Include only the significant genes from the data
+expression_df_sig <- expression_df[expression_df$Gene %in% deseq_df_sig$Gene, ]
+```
+
+```{r}
+# separates samples into their categories
+cancer <- metadata[substr(metadata$refinebio_title, 1, 12) == "Lung_tumor [", ]
+near_cancer <- metadata[substr(metadata$refinebio_title, 1, 20) == "Lung_tumor_adjacent ", ]
+control <- metadata[substr(metadata$refinebio_title, 1, 7) == "Control", ]
+
+# converts the sample IDs into vectors
+cancer_id <- cancer$refinebio_accession_code
+near_cancer_id <- near_cancer$refinebio_accession_code
+control_id <- control$refinebio_accession_code
+```
+
+```{r}
+
+# converts data frame to matrix
+sig_genes_matrix <- as.matrix(expression_df_sig)
+
+# convert first column to rowname
+rownames(sig_genes_matrix) <- sig_genes_matrix[, 1]
+
+# removes first column that contains the gene names
+sig_genes_matrix <- sig_genes_matrix[, -1]
+
+# convert matrix values to numbers
+sig_genes_matrix_num <- apply(sig_genes_matrix, 2, as.numeric)
+
+# log the matrix to make heat map easier to read
+sig_genes_matrix_num_log <- log(sig_genes_matrix_num, base = 2)
+
+# reassigns the genes as row names
+rownames(sig_genes_matrix_num_log) <- rownames(sig_genes_matrix)
+
+```
+
+```{r}
+# filters the data so that each object only has either cancer, near cancer, or control samples
+cancer_data <- subset(sig_genes_matrix_num_log, select = cancer_id)
+near_cancer_data <- subset(sig_genes_matrix_num_log, select = near_cancer_id)
+control_data <- subset(sig_genes_matrix_num_log, select = control_id)
+
+```
+
+```{r}
+# creates different colors for the heatmaps
+c1 = colorRamp2(c(-5, 0, 5), c("green", "white", "red"))
+c2 = colorRamp2(c(-5, 0, 5), c("blue", "white", "orange"))
+c3 = colorRamp2(c(-5, 0, 5), c("purple", "white", "yellow"))
+```
+
+```{r}
+# create 3 different heatmap objects for each of the categories (cancer, near cancer, control)
+h1 <- Heatmap(cancer_data,
+              name = "Cancer", 
+              column_title = "Cancer",
+              col = c1
+              )
+h2 <- Heatmap(near_cancer_data,
+              name = "Near Cancer", 
+              column_title = "Near Cancer",
+              col = c2
+              )
+h3 <- Heatmap(control_data,
+              name = "Control", 
+              column_title = "Control",
+              col = c3
+              )
+
+# creates one heatmap list
+all_heatmaps = h1 + h2 + h3
+
+#draw the heapmap list
+draw(
+  all_heatmaps, 
+  column_title = "Heatmap",
+  column_title_gp = gpar(fontsize = 22)
+  )
+
+```
+
+```{r}
+# downloads the heatmap (I couldnt figure out how)
 
 
-
-
-
-
-
-
-
-
-
-
-
+```
 
 
 
