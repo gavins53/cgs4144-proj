@@ -1,51 +1,6 @@
 ```{r}
 # Libraries
 
-# Install Bioconductor
-if (!require("BiocManager", quietly = TRUE))
-    install.packages("BiocManager")
-BiocManager::install(version = "3.17")
-
-# Install tidyverse
-if (!require("tidyverse", quietly = TRUE)) {
-  install.packages("tidyverse")
-}
-
-# Install devtools from CRAN
-if (!require("devtools", quietly = TRUE)) {
-  install.packages("devtools")
-}
-
-# Install the Zebrafish package
-if (!("org.Hs.eg.db" %in% installed.packages())) {
-  # Install this package if it isn't installed yet
-  BiocManager::install("org.Hs.eg.db", update = FALSE)
-}
-
-if (!("DESeq2" %in% installed.packages())) {
-  # Install this package if it isn't installed yet
-  BiocManager::install("DESeq2", update = FALSE)
-}
-
-if (!("EnhancedVolcano" %in% installed.packages())) {
-  # Install this package if it isn't installed yet
-  BiocManager::install("EnhancedVolcano", update = FALSE)
-}
-
-if (!("apeglm" %in% installed.packages())) {
-  # Install this package if it isn't installed yet
-  BiocManager::install("apeglm", update = FALSE)
-}
-
-# Install Rtsne
-if (!requireNamespace("Rtsne", quietly = TRUE)) {
-  install.packages("Rtsne")
-}
-
-if (!("gprofiler2" %in% installed.packages())) {
-  install.packages("gprofiler2")
-}
-
 # Attach the library
 library(org.Hs.eg.db)
 # We will need this so we can use the pipe: %>%
@@ -67,14 +22,21 @@ library(circlize)
 
 library(gprofiler2)
 
-BiocManager::install("clusterProfiler")
 library(clusterProfiler)
 
-BiocManager::install("org.Hs.eg.db")
-library(org.Hs.eg.db)
-
-BiocManager::install("AnnotationDbi")
 library(AnnotationDbi)
+
+library(topGO)
+
+library(dplyr)
+
+library(tidyr)
+
+library(readr)
+
+library(tibble)
+
+library(stringr)
 
 ```
 
@@ -153,6 +115,8 @@ expression_df <- expression_df %>%
 
 # Get dimensions of expression matrix
 cat(dim(expression_df))
+
+expression_df
 ```
 
 ```{r}
@@ -259,8 +223,6 @@ ggsave(
 
 # Importing data and metadata
 
-set.seed(53)
-
 metadata <- read_tsv("data/SRP125001/metadata_SRP125001.tsv")
 
 expression_df <- read_tsv("data/SRP125001/SRP125001.tsv") %>%
@@ -270,6 +232,11 @@ expression_df <- expression_df %>%
   dplyr::select(metadata$refinebio_accession_code)
 
 all.equal(colnames(expression_df), metadata$refinebio_accession_code)
+
+# expression_df$symbol <- mapIds(org.Hs.eg.db, keys = rownames(expression_df), keytype = "ENSEMBL", column = "SYMBOL")
+
+expression_df
+
 
 ```
 
@@ -308,7 +275,7 @@ levels(metadata$tissue_type)
 # Only keep genes with sufficient total counts
 
 filtered_expression_df <- expression_df %>%
-  dplyr::filter(rowSums(.) >= 10)
+  dplyr::filter(rowSums(select_if(., is.numeric)) >= 10)
 
 ```
 
@@ -394,9 +361,11 @@ write_tsv(
 
 ```{r}
 
+deseq_df$symbol <- mapIds(org.Hs.eg.db, keys = deseq_df$Gene, keytype = "ENSEMBL", column = "SYMBOL")
+
 volcano_plot <- EnhancedVolcano::EnhancedVolcano(
   deseq_df,
-  lab = deseq_df$Gene,
+  lab = deseq_df$symbol,
   x = "log2FoldChange",
   y = "padj",
   pCutoff = 0.01
@@ -436,7 +405,6 @@ deseq_df <- read_tsv("Results/SRP125001_diff_expr_results.tsv")
 # adjust p_value to use for the heat map
 p_value <- 0.0001
 
-
 # Grabs all of the significant genes.
 # p-value is very small otherwise it would grab a lot of genes and make the heat map hard to read.
 deseq_df_sig <- deseq_df[deseq_df$padj < p_value,]
@@ -444,6 +412,8 @@ deseq_df_sig <- na.omit(deseq_df_sig)
 
 # Include only the significant genes from the data
 expression_df_sig <- expression_df[expression_df$Gene %in% deseq_df_sig$Gene, ]
+
+expression_df_sig$Gene <- mapIds(org.Hs.eg.db, keys = expression_df_sig$Gene, keytype = "ENSEMBL", column = "SYMBOL")
 ```
 
 ```{r}
@@ -477,6 +447,7 @@ sig_genes_matrix_num_log <- log(sig_genes_matrix_num, base = 2)
 
 # reassigns the genes as row names
 rownames(sig_genes_matrix_num_log) <- rownames(sig_genes_matrix)
+
 
 ```
 
@@ -612,7 +583,6 @@ gPlot
 
 ```
 
-
 ```{r}
 # Enrichment analysis using topGO and gene ontology
 deseq_df<- read_tsv("Results/SRP125001_diff_expr_results.tsv")
@@ -624,9 +594,9 @@ mapped_list <- mapIds(
   column = "SYMBOL", # The type of gene identifiers you would like to map to
 )
 ```
+
 ```{r}
 allGenes <- setNames(deseq_df$padj, mapped_list)
-#allGenes <- setNames(gene_selection, mapped_list)
 
 selection <- function(padj) {
   return(padj < 0.005)
@@ -650,12 +620,14 @@ godata <- new("topGOdata",
 result <- runTest(godata, algorithm = "classic", statistic = "fisher")
 result
 ```
+
 ```{r}
 resTable <- GenTable(godata, classic = result, orderBy = 'classic', topNodes = 50)
 resTable
 ```
+
 ```{r}
-ggplot(selected_results, aes(x = GO.ID, y = -log10(as.numeric(classic)))) +
+ggplot(resTable, aes(x = GO.ID, y = -log10(as.numeric(classic)))) +
   geom_bar(stat = "identity", fill = "blue") +
   labs(title = "GO Enrichment Analysis", x = "GO Term", y = "-log10(p-value)") +
   theme(axis.text.x = element_text(angle = 90, hjust = 1))
@@ -666,6 +638,16 @@ ggsave(
   device = "png",
 )
 ```
+
+
+
+
+
+
+
+
+
+
 
 
 
