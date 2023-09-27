@@ -42,6 +42,10 @@ if (!requireNamespace("Rtsne", quietly = TRUE)) {
   install.packages("Rtsne")
 }
 
+if (!("gprofiler2" %in% installed.packages())) {
+  install.packages("gprofiler2")
+}
+
 # Attach the library
 library(org.Hs.eg.db)
 # We will need this so we can use the pipe: %>%
@@ -60,6 +64,8 @@ library(Rtsne)
 library(ComplexHeatmap)
 
 library(circlize)
+
+library(gprofiler2)
 
 ```
 
@@ -402,11 +408,10 @@ ggsave(
 ```
 
 ```{r}
+# Part 4
 
-# Part 4 - Don start here
 # Differentially expressed genes located in 
 # Results/SRP125001_diff_expr_results.tsv
-
 # Or use variable deseq_df from Part 3
 
 metadata <- read_tsv("data/SRP125001/metadata_SRP125001.tsv")
@@ -483,6 +488,10 @@ c3 = colorRamp2(c(-5, 0, 5), c("purple", "white", "yellow"))
 
 ```{r}
 # create 3 different heatmap objects for each of the categories (cancer, near cancer, control)
+
+# prepare to save as png
+png("Plots/Heatmap.png")
+
 h1 <- Heatmap(cancer_data,
               name = "Cancer", 
               column_title = "Cancer",
@@ -509,13 +518,67 @@ draw(
   column_title_gp = gpar(fontsize = 22)
   )
 
+dev.off()
+
+# should be saved as png by now
+
+draw(
+  all_heatmaps, 
+  column_title = "Heatmap",
+  column_title_gp = gpar(fontsize = 22)
+  )
+
 ```
 
 ```{r}
-# downloads the heatmap (I couldnt figure out how)
 
+# Enrichment analysis using gProfiler2 and gene ontology
+
+deseq_df <- read_tsv("Results/SRP125001_diff_expr_results.tsv")
+
+deseq_vec <- unlist(deseq_df)
 
 ```
+
+
+```{r}
+
+gostres <- gost(query = deseq_vec, 
+  organism = "hsapiens", ordered_query = FALSE, 
+  multi_query = FALSE, significant = TRUE, exclude_iea = FALSE, 
+  measure_underrepresentation = FALSE, evcodes = FALSE, 
+  user_threshold = 0.05, correction_method = "g_SCS", 
+  domain_scope = "annotated", custom_bg = NULL, 
+  numeric_ns = "", sources = NULL, as_short_link = FALSE, highlight = TRUE)
+
+```
+
+```{r}
+gostres$result
+```
+
+```{r}
+
+gostplot(gostres, capped = TRUE, interactive = TRUE)
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
