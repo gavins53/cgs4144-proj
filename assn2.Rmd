@@ -67,6 +67,15 @@ library(circlize)
 
 library(gprofiler2)
 
+BiocManager::install("clusterProfiler")
+library(clusterProfiler)
+
+BiocManager::install("org.Hs.eg.db")
+library(org.Hs.eg.db)
+
+BiocManager::install("AnnotationDbi")
+library(AnnotationDbi)
+
 ```
 
 ```{r}
@@ -563,14 +572,44 @@ gostplot(gostres, capped = TRUE, interactive = TRUE)
 
 ```
 
+```{r}
 
+# Enrichment analysis using clusterProfiler and gene ontology
 
+deseq_df <- read_tsv("Results/SRP125001_diff_expr_results.tsv")
 
+# omits NA values from the data
+df_cleaned <- na.omit(deseq_df)
 
+```
 
+```{r}
+# uses log2FoldChanage for enrichment
+gene_list <- df_cleaned$log2FoldChange
+names(gene_list) <- df_cleaned$Gene
 
+```
 
+```{r}
+# runs GSE from clusterProfiler on the data
+gse <- gseGO(
+  gene_list,
+  keyType = "ENSEMBL",
+  OrgDb = "org.Hs.eg.db",
+  eps = 1e-300
+  )
 
+```
+
+```{r}
+# prints and saves the plot
+gPlot <- gseaplot(gse, geneSetID = 1)
+png("Plots/clusterProfiler.png")
+print(gPlot)
+dev.off()
+gPlot
+
+```
 
 
 
