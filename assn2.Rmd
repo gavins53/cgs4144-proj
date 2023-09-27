@@ -613,7 +613,59 @@ gPlot
 ```
 
 
+```{r}
+# Enrichment analysis using topGO and gene ontology
+deseq_df<- read_tsv("Results/SRP125001_diff_expr_results.tsv")
+deseq_df <- na.omit(deseq_df)
+mapped_list <- mapIds(
+  org.Hs.eg.db, # Replace with annotation package for your organism
+  keys = deseq_df$Gene,
+  keytype = "ENSEMBL", # Replace with the type of gene identifiers in your data
+  column = "SYMBOL", # The type of gene identifiers you would like to map to
+)
+```
+```{r}
+allGenes <- setNames(deseq_df$padj, mapped_list)
+#allGenes <- setNames(gene_selection, mapped_list)
 
+selection <- function(padj) {
+  return(padj < 0.005)
+}
+
+# Create a topGOdata object
+godata <- new("topGOdata",
+              ontology = "BP",
+              allGenes = allGenes,
+              geneSelectionFun = selection,
+              mapping = 'org.Hs.eg.db',
+              ID = 'symbol',
+              annot = annFUN.org,
+              nodeSize = 10)
+
+
+```
+
+```{r}
+# Run test
+result <- runTest(godata, algorithm = "classic", statistic = "fisher")
+result
+```
+```{r}
+resTable <- GenTable(godata, classic = result, orderBy = 'classic', topNodes = 50)
+resTable
+```
+```{r}
+ggplot(selected_results, aes(x = GO.ID, y = -log10(as.numeric(classic)))) +
+  geom_bar(stat = "identity", fill = "blue") +
+  labs(title = "GO Enrichment Analysis", x = "GO Term", y = "-log10(p-value)") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+ggsave(
+  filename = file.path("Plots", "topGO.png"),
+  plot = last_plot(),
+  device = "png",
+)
+```
 
 
 
