@@ -1,0 +1,656 @@
+```{r}
+# Libraries
+
+# Attach the library
+library(org.Hs.eg.db)
+# We will need this so we can use the pipe: %>%
+library(magrittr)
+
+library(DESeq2)
+
+library(EnhancedVolcano)
+
+library(apeglm)
+
+library(ggplot2)
+
+library(Rtsne)
+
+library(ComplexHeatmap)
+
+library(circlize)
+
+library(gprofiler2)
+
+library(clusterProfiler)
+
+library(AnnotationDbi)
+
+library(topGO)
+
+library(dplyr)
+
+library(tidyr)
+
+library(readr)
+
+library(tibble)
+
+library(stringr)
+
+```
+
+```{r}
+# Initializing data variables
+
+# Define the file path to the data directory
+# Replace with the path of the folder the files will be in
+data_dir <- file.path("data", "SRP125001")
+
+# Declare the file path to the gene expression matrix file
+# inside directory saved as `data_dir`
+# Replace with the path to your dataset file
+data_file <- file.path(data_dir, "SRP125001.tsv")
+
+# Declare the file path to the metadata file
+# inside the directory saved as `data_dir`
+# Replace with the path to your metadata file
+metadata_file <- file.path(data_dir, "metadata_SRP125001.tsv")
+
+# Check if the gene expression matrix file is at the path stored in `data_file`
+file.exists(data_file)
+
+# Check if the metadata file is at the file path stored in `metadata_file`
+file.exists(metadata_file)
+```
+```{r}
+# Step 1: Initializing data, converting Ensembl IDs to Hugo gene names, & basic analysis
+# Read in metadata TSV file
+metadata <- readr::read_tsv(metadata_file)
+
+# Read in data TSV file
+expression_df <- readr::read_tsv(data_file) %>%
+  # Tuck away the Gene ID column as row names
+  tibble::column_to_rownames("Gene")
+
+# Make the data in the order of the metadata
+expression_df <- expression_df %>%
+  dplyr::select(metadata$refinebio_accession_code)
+
+# Check if this is in the same order
+all.equal(colnames(expression_df), metadata$refinebio_accession_code)
+
+# Bring back the "Gene" column in preparation for mapping
+expression_df <- expression_df %>%
+  tibble::rownames_to_column("Gene")
+
+# Map Ensembl IDs to their associated Hugo IDs
+mapped_list <- mapIds(
+  org.Hs.eg.db, # Replace with annotation package for your organism
+  keys = expression_df$Gene,
+  keytype = "ENSEMBL", # Replace with the type of gene identifiers in your data
+  column = "SYMBOL", # The type of gene identifiers you would like to map to
+  multiVals = "list"
+)
+
+head(mapped_list)
+```
+```{r}
+# Turn list to data frame
+mapped_df <- mapped_list %>%
+  tibble::enframe(name = "Ensembl", value = "HUGO") %>%
+  # enframe() makes a `list` column; we will simplify it with unnest()
+  # This will result in one row of our data frame per list item
+  tidyr::unnest(cols = HUGO)
+
+head(mapped_df)
+```
+
+```{r}
+# Replace Ensembl names with Hugo symbols in new data frame, to be used for analysis
+expression_df <- expression_df %>%
+  left_join(mapped_df, by = c("Gene" = "Ensembl")) %>%
+  mutate(Gene = ifelse(is.na(HUGO), Gene, HUGO)) %>%
+  dplyr::select(-HUGO)
+
+# Get dimensions of expression matrix
+cat(dim(expression_df))
+
+expression_df
+```
+
+```{r}
+# Log scale the data frame
+expression_df_log <- expression_df %>%
+  # Apply log transformation to all columns except the "Gene" column
+  mutate(across(-Gene, ~log(., base = 2)))
+
+# Calculate the row medians for each gene
+per_gene_medians <- expression_df_log %>%
+  rowwise() %>%
+  mutate(Median = median(c_across(-Gene))) %>%
+  dplyr::select(Gene, Median)
+
+# Peek at the result
+head(per_gene_medians)
+```
+
+```{r}
+# Create a density plot of the median expression ranges
+ggplot(data = per_gene_medians, aes(x = Median)) +
+  geom_density(fill = "blue", color = "black") +
+  labs(title = "Density Plot of Median Expression Ranges",
+       x = "Median Expression Range (Log2 Scale)",
+       y = "Density")
+
+# Save the plot to a file
+ggsave(
+  filename = file.path("Plots", "SRP125001_per_gene_medians_density_plot.png"),
+  plot = last_plot(),
+  device = "png",
+)
+```
+```{r}
+all(colnames(expression_df_log) == metadata$refinebio_accession_code)
+unique(colnames(expression_df_log))
+unique(metadata$refinebio_accession_code)
+
+```
+
+
+```{r}
+# Step 2: Generating PCA and t-SNE plots
+
+# Combining cancer and cancer-adjacent under "Cancer" group
+metadata$Group <- ifelse(grepl("Lung_tumor", metadata$refinebio_title), "Cancer", "Non-Cancer")
+rounded_df <- round(expression_df[-1])
+dds <- DESeqDataSetFromMatrix(countData = rounded_df, colData = metadata, design = ~Group)
+dds <- DESeq(dds)
+vsd <- vst(dds)
+pcaData <- plotPCA(vsd, intgroup = "Group", returnData = TRUE)
+pcaData$Group <- NULL
+pcaData
+```
+
+```{r}
+percentVar <- round(100 * attr(pcaData, "percentVar"))
+
+ggplot(pcaData, aes(PC1, PC2, color=group)) +
+  geom_point(size=3) +
+  ggtitle("Principal Component Analysis of Cancerous & Non-Cancerous Samples") +
+  xlab(paste0("PC1: ",percentVar[1],"% variance")) +
+  ylab(paste0("PC2: ",percentVar[2],"% variance")) + 
+  coord_fixed()
+
+ggsave(
+  filename = file.path("Plots", "SRP125001_pca_plot.png"),
+  plot = last_plot(),
+  device = "png",
+)
+```
+```{r}
+# t-SNE
+set.seed(123) # for reproducibility
+vsd_matrix <- t(unique(assay(vsd)))
+tsne_data <- Rtsne(vsd_matrix, perplexity = 10, verbose = TRUE)
+
+# Create a data frame with t-SNE coordinates
+tsne_df <- data.frame(PC1 = tsne_data$Y[, 1], PC2 = tsne_data$Y[, 2], Group = metadata$Group)
+
+```
+
+```{r}
+# Create the t-SNE plot
+# t-SNE plot
+ggplot(tsne_df, aes(PC1, PC2, color = Group)) +
+  geom_point(size = 3) +
+  ggtitle("t-SNE Plot of Cancerous & Non-Cancerous Samples") +
+  xlab("t-SNE 1") +
+  ylab("t-SNE 2") +
+  coord_fixed()
+
+ggsave(
+  filename = file.path("Plots", "SRP125001_t-sne_plot.png"),
+  plot = last_plot(),
+  device = "png",
+)
+```
+
+
+```{r}
+
+# Step 3
+
+# Importing data and metadata
+
+metadata <- read_tsv("data/SRP125001/metadata_SRP125001.tsv")
+
+expression_df <- read_tsv("data/SRP125001/SRP125001.tsv") %>%
+  column_to_rownames("Gene")
+
+expression_df <- expression_df %>%
+  dplyr::select(metadata$refinebio_accession_code)
+
+all.equal(colnames(expression_df), metadata$refinebio_accession_code)
+
+# expression_df$symbol <- mapIds(org.Hs.eg.db, keys = rownames(expression_df), keytype = "ENSEMBL", column = "SYMBOL")
+
+expression_df
+
+
+```
+
+```{r}
+
+# Setting up metadata
+
+metadata <- metadata %>%
+  # Obtain the type of tissue from the title variable and create its own column
+  dplyr::mutate(tissue_type = dplyr::case_when(
+    str_detect(refinebio_title, "Control_tissue") ~ "Control",
+    str_detect(refinebio_title, "_adjacent") ~ "Tumor_adjacent",
+    str_detect(refinebio_title, "Lung_tumor") ~ "Tumor"
+  ))
+
+dplyr::select(metadata, refinebio_title, tissue_type)
+
+```
+
+```{r}
+
+# Making tissue_type a factor variable
+
+metadata <- metadata %>%
+  dplyr::mutate(
+
+    tissue_type = factor(tissue_type, levels = c("Control", "Tumor_adjacent", "Tumor"))
+  )
+
+levels(metadata$tissue_type)
+
+```
+
+```{r}
+
+# Only keep genes with sufficient total counts
+
+filtered_expression_df <- expression_df %>%
+  dplyr::filter(rowSums(select_if(., is.numeric)) >= 10)
+
+```
+
+```{r}
+
+# Create DESeq2Dataset
+
+# Round expression counts to integers
+
+gene_matrix <- round(filtered_expression_df)
+
+ddset <- DESeqDataSetFromMatrix(
+
+  countData = gene_matrix,
+
+  colData = metadata,
+
+  design = ~tissue_type
+  
+)
+
+```
+
+```{r}
+
+# Running differential expression analysis
+
+deseq_object <- DESeq(ddset)
+
+```
+
+```{r}
+
+# Extract results table
+
+deseq_results <- results(deseq_object)
+
+head(deseq_results)
+
+resultsNames(deseq_object)
+
+```
+
+```{r}
+
+# Obtaining shrunken log fold change estimates
+
+deseq_results <- lfcShrink(deseq_object, coef = 3, res = deseq_results)
+
+head(deseq_results)
+
+```
+
+```{r}
+
+# Converting to data frame and tidying up
+deseq_df <- deseq_results %>%
+
+  as.data.frame() %>%
+
+  tibble::rownames_to_column("Gene") %>%
+
+  dplyr::mutate(threshold = padj < 0.05) %>%
+
+  dplyr::arrange(dplyr::desc(log2FoldChange))
+
+```
+
+```{r}
+head(deseq_df)
+```
+
+```{r}
+
+write_tsv(
+  deseq_df,
+  file.path(
+    "Results/",
+    "SRP125001_diff_expr_results.tsv")
+)
+
+```
+
+```{r}
+
+deseq_df$symbol <- mapIds(org.Hs.eg.db, keys = deseq_df$Gene, keytype = "ENSEMBL", column = "SYMBOL")
+
+volcano_plot <- EnhancedVolcano::EnhancedVolcano(
+  deseq_df,
+  lab = deseq_df$symbol,
+  x = "log2FoldChange",
+  y = "padj",
+  pCutoff = 0.01
+)
+
+volcano_plot
+
+```
+
+```{r}
+
+# Saving volcano plot to png
+
+ggsave(
+  plot = volcano_plot,
+  file.path("Plots/", "SRP125001_volcano_plot.png")
+)
+```
+
+```{r}
+# Part 4
+
+# Differentially expressed genes located in 
+# Results/SRP125001_diff_expr_results.tsv
+# Or use variable deseq_df from Part 3
+
+metadata <- read_tsv("data/SRP125001/metadata_SRP125001.tsv")
+
+expression_df <- read_tsv("data/SRP125001/SRP125001.tsv")
+
+deseq_df <- read_tsv("Results/SRP125001_diff_expr_results.tsv")
+
+
+```
+
+```{r}
+# adjust p_value to use for the heat map
+p_value <- 0.0001
+
+# Grabs all of the significant genes.
+# p-value is very small otherwise it would grab a lot of genes and make the heat map hard to read.
+deseq_df_sig <- deseq_df[deseq_df$padj < p_value,]
+deseq_df_sig <- na.omit(deseq_df_sig)
+
+# Include only the significant genes from the data
+expression_df_sig <- expression_df[expression_df$Gene %in% deseq_df_sig$Gene, ]
+
+expression_df_sig$Gene <- mapIds(org.Hs.eg.db, keys = expression_df_sig$Gene, keytype = "ENSEMBL", column = "SYMBOL")
+```
+
+```{r}
+# separates samples into their categories
+cancer <- metadata[substr(metadata$refinebio_title, 1, 12) == "Lung_tumor [", ]
+near_cancer <- metadata[substr(metadata$refinebio_title, 1, 20) == "Lung_tumor_adjacent ", ]
+control <- metadata[substr(metadata$refinebio_title, 1, 7) == "Control", ]
+
+# converts the sample IDs into vectors
+cancer_id <- cancer$refinebio_accession_code
+near_cancer_id <- near_cancer$refinebio_accession_code
+control_id <- control$refinebio_accession_code
+```
+
+```{r}
+
+# converts data frame to matrix
+sig_genes_matrix <- as.matrix(expression_df_sig)
+
+# convert first column to rowname
+rownames(sig_genes_matrix) <- sig_genes_matrix[, 1]
+
+# removes first column that contains the gene names
+sig_genes_matrix <- sig_genes_matrix[, -1]
+
+# convert matrix values to numbers
+sig_genes_matrix_num <- apply(sig_genes_matrix, 2, as.numeric)
+
+# log the matrix to make heat map easier to read
+sig_genes_matrix_num_log <- log(sig_genes_matrix_num, base = 2)
+
+# reassigns the genes as row names
+rownames(sig_genes_matrix_num_log) <- rownames(sig_genes_matrix)
+
+
+```
+
+```{r}
+# filters the data so that each object only has either cancer, near cancer, or control samples
+cancer_data <- subset(sig_genes_matrix_num_log, select = cancer_id)
+near_cancer_data <- subset(sig_genes_matrix_num_log, select = near_cancer_id)
+control_data <- subset(sig_genes_matrix_num_log, select = control_id)
+
+```
+
+```{r}
+# creates different colors for the heatmaps
+c1 = colorRamp2(c(-5, 0, 5), c("green", "white", "red"))
+c2 = colorRamp2(c(-5, 0, 5), c("blue", "white", "orange"))
+c3 = colorRamp2(c(-5, 0, 5), c("purple", "white", "yellow"))
+```
+
+```{r}
+# create 3 different heatmap objects for each of the categories (cancer, near cancer, control)
+
+# prepare to save as png
+png("Plots/Heatmap.png")
+
+h1 <- Heatmap(cancer_data,
+              name = "Cancer", 
+              column_title = "Cancer",
+              col = c1
+              )
+h2 <- Heatmap(near_cancer_data,
+              name = "Near Cancer", 
+              column_title = "Near Cancer",
+              col = c2
+              )
+h3 <- Heatmap(control_data,
+              name = "Control", 
+              column_title = "Control",
+              col = c3
+              )
+
+# creates one heatmap list
+all_heatmaps = h1 + h2 + h3
+
+#draw the heapmap list
+draw(
+  all_heatmaps, 
+  column_title = "Heatmap",
+  column_title_gp = gpar(fontsize = 22)
+  )
+
+dev.off()
+
+# should be saved as png by now
+
+draw(
+  all_heatmaps, 
+  column_title = "Heatmap",
+  column_title_gp = gpar(fontsize = 22)
+  )
+
+```
+
+```{r}
+
+# Enrichment analysis using gProfiler2 and gene ontology
+
+deseq_df <- read_tsv("Results/SRP125001_diff_expr_results.tsv")
+
+deseq_vec <- unlist(deseq_df)
+
+```
+
+
+```{r}
+
+gostres <- gost(query = deseq_vec, 
+  organism = "hsapiens", ordered_query = FALSE, 
+  multi_query = FALSE, significant = TRUE, exclude_iea = FALSE, 
+  measure_underrepresentation = FALSE, evcodes = FALSE, 
+  user_threshold = 0.05, correction_method = "g_SCS", 
+  domain_scope = "annotated", custom_bg = NULL, 
+  numeric_ns = "", sources = NULL, as_short_link = FALSE, highlight = TRUE)
+
+```
+
+```{r}
+gostres$result
+```
+
+```{r}
+
+gostplot(gostres, capped = TRUE, interactive = TRUE)
+
+```
+
+```{r}
+
+# Enrichment analysis using clusterProfiler and gene ontology
+
+deseq_df <- read_tsv("Results/SRP125001_diff_expr_results.tsv")
+
+# omits NA values from the data
+df_cleaned <- na.omit(deseq_df)
+
+```
+
+```{r}
+# uses log2FoldChanage for enrichment
+gene_list <- df_cleaned$log2FoldChange
+names(gene_list) <- df_cleaned$Gene
+
+```
+
+```{r}
+# runs GSE from clusterProfiler on the data
+gse <- gseGO(
+  gene_list,
+  keyType = "ENSEMBL",
+  OrgDb = "org.Hs.eg.db",
+  eps = 1e-300
+  )
+
+```
+
+```{r}
+# prints and saves the plot
+require(DOSE)
+gPlot <- dotplot(gse, showCategory=10, split=".sign") + facet_grid(.~.sign)
+png("Plots/clusterProfiler.png")
+print(gPlot)
+dev.off()
+gPlot
+
+```
+
+```{r}
+# Enrichment analysis using topGO and gene ontology
+deseq_df<- read_tsv("Results/SRP125001_diff_expr_results.tsv")
+deseq_df <- na.omit(deseq_df)
+mapped_list <- mapIds(
+  org.Hs.eg.db, # Replace with annotation package for your organism
+  keys = deseq_df$Gene,
+  keytype = "ENSEMBL", # Replace with the type of gene identifiers in your data
+  column = "SYMBOL", # The type of gene identifiers you would like to map to
+)
+```
+
+```{r}
+allGenes <- setNames(deseq_df$padj, mapped_list)
+
+selection <- function(padj) {
+  return(padj < 0.005)
+}
+
+# Create a topGOdata object
+godata <- new("topGOdata",
+              ontology = "BP",
+              allGenes = allGenes,
+              geneSelectionFun = selection,
+              mapping = 'org.Hs.eg.db',
+              ID = 'symbol',
+              annot = annFUN.org,
+              nodeSize = 10)
+
+
+```
+
+```{r}
+# Run test
+result <- runTest(godata, algorithm = "classic", statistic = "fisher")
+result
+```
+
+```{r}
+resTable <- GenTable(godata, classic = result, orderBy = 'classic', topNodes = 50)
+resTable
+```
+
+```{r}
+ggplot(resTable, aes(x = GO.ID, y = -log10(as.numeric(classic)))) +
+  geom_bar(stat = "identity", fill = "blue") +
+  labs(title = "GO Enrichment Analysis", x = "GO Term", y = "-log10(p-value)") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+ggsave(
+  filename = file.path("Plots", "topGO.png"),
+  plot = last_plot(),
+  device = "png",
+)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
