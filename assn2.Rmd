@@ -603,15 +603,14 @@ gse <- gseGO(
 
 ```{r}
 # prints and saves the plot
-gPlot <- gseaplot(gse, geneSetID = 1)
+require(DOSE)
+gPlot <- dotplot(gse, showCategory=10, split=".sign") + facet_grid(.~.sign)
 png("Plots/clusterProfiler.png")
 print(gPlot)
 dev.off()
 gPlot
 
 ```
-
-
 
 
 
