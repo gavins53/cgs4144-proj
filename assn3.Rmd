@@ -1,18 +1,116 @@
 ```{r}
 # Libraries
 
+library(DESeq2)
+
+library(readr)
+
+library(magrittr)
+
+library(ggplot2)
+
+BiocManager::install("ConsensusClusterPlus")
+library(ConsensusClusterPlus)
+
+```
+
+```{r}
+metadata <- readr::read_tsv("data/SRP125001/metadata_SRP125001.tsv")
+
+# Read in data TSV file
+expression_df <- readr::read_tsv("data/SRP125001/SRP125001.tsv") %>%
+  # Tuck away the Gene ID column as row names
+  tibble::column_to_rownames("Gene")
+
+# Make the data in the order of the metadata
+expression_df <- expression_df %>%
+  dplyr::select(metadata$refinebio_accession_code)
+
+all.equal(colnames(expression_df), metadata$refinebio_accession_code)
+
+
+
+```
+
+```{r}
+# Calculates the row variance of expression_df then grabs the top 5000.
+
+row_variances <- apply(expression_df, 1, var)
+sorted_indices <- order(row_variances, decreasing = TRUE)
+sorted_indices<- sorted_indices[1:5000]
+top_5000_variances <- row_variances[sorted_indices]
+
+top_5000_genes_var <- expression_df[sorted_indices,]
+
+```
+
+```{r}
+# This is calculated using MAD (median absolute deviation).
+# I would use this because this was found in a tutorial for ConsensusClusterPlus where the 5,000 most varaible
+# genes were gathered.
+
+mads=apply(expression_df,1,mad)
+top_5000_genes_mads=expression_df[rev(order(mads))[1:5000],]
+
+
+```
+
+```{r}
+# Runs ConsensusClusterPlus. 
+# Don't know how to save the plots, so just did it manually
+
+top_5000_genes_mads_matrix <- as.matrix(top_5000_genes_mads)
+
+title="/Plots/assignment3"
+results = ConsensusClusterPlus(
+  top_5000_genes_mads_matrix, 
+  maxK=10,
+  reps=50,
+  pItem=0.8,
+  pFeature=1, 
+  title=title,
+  clusterAlg="hc",
+  distance="pearson",
+  seed=1262118388.71279
+  )
+```
+
+
+```{r}
+# Ran hclust and plotted it.
+# Don't know if this is correct.
+
+png("Plots/assignment3/hclust_dendrogram.png")
+
+distance_matrix <- dist(top_5000_genes, method = "euclidean")
+hierarchical_result <- hclust(distance_matrix, method = "complete")
+plot(hierarchical_result, hang = -1, main = "Hierarchical Clustering Dendrogram")
+
+dev.off()
+
+plot(hierarchical_result, hang = -1, main = "Hierarchical Clustering Dendrogram")
 
 ```
 
 ```{r}
 
 
-
 ```
 
-```{r}
 
 
 
-```
+
+
+
+
+
+
+
+
+
+
+
+
+
 
