@@ -9,6 +9,8 @@ library(magrittr)
 
 library(ggplot2)
 
+library(dplyr)
+
 BiocManager::install("ConsensusClusterPlus")
 library(ConsensusClusterPlus)
 
@@ -20,10 +22,33 @@ library(factoextra)
 ```
 
 ```{r}
-metadata <- readr::read_tsv("data/SRP125001/metadata_SRP125001.tsv")
+## Original code, not log-scaled
+
+# metadata <- readr::read_tsv("data/SRP125001/metadata_SRP125001.tsv")
 
 # Read in data TSV file
-expression_df <- readr::read_tsv("data/SRP125001/SRP125001.tsv") %>%
+# expression_df <- readr::read_tsv("data/SRP125001/SRP125001.tsv") %>%
+  # Tuck away the Gene ID column as row names
+  # tibble::column_to_rownames("Gene")
+
+# Make the data in the order of the metadata
+# expression_df <- expression_df %>%
+  # dplyr::select(metadata$refinebio_accession_code)
+
+# all.equal(colnames(expression_df), metadata$refinebio_accession_code)
+
+
+
+```
+
+```{r}
+# Log-scale the data and use HUGO symbols
+
+# Read in metadata TSV file
+metadata <- readr::read_tsv(metadata_file)
+
+# Read in data TSV file
+expression_df <- readr::read_tsv(data_file) %>%
   # Tuck away the Gene ID column as row names
   tibble::column_to_rownames("Gene")
 
@@ -31,21 +56,25 @@ expression_df <- readr::read_tsv("data/SRP125001/SRP125001.tsv") %>%
 expression_df <- expression_df %>%
   dplyr::select(metadata$refinebio_accession_code)
 
+# Check if this is in the same order
 all.equal(colnames(expression_df), metadata$refinebio_accession_code)
 
-
-
+# Log scale the data frame
+expression_df_log <- expression_df %>%
+  # Apply log transformation to all columns except the "Gene" column
+  mutate(across(everything(), ~log(., base = 2)))
 ```
+
 
 ```{r}
 # Calculates the row variance of expression_df then grabs the top 5000.
 
-row_variances <- apply(expression_df, 1, var)
+row_variances <- apply(expression_df_log, 1, var)
 sorted_indices <- order(row_variances, decreasing = TRUE)
 sorted_indices<- sorted_indices[1:5000]
 top_5000_variances <- row_variances[sorted_indices]
 
-top_5000_genes_var <- expression_df[sorted_indices,]
+top_5000_genes_var <- expression_df_log[sorted_indices,]
 
 ```
 
@@ -54,8 +83,8 @@ top_5000_genes_var <- expression_df[sorted_indices,]
 # I would use this because this was found in a tutorial for ConsensusClusterPlus where the 5,000 most varaible
 # genes were gathered.
 
-mads=apply(expression_df,1,mad)
-top_5000_genes_mads=expression_df[rev(order(mads))[1:5000],]
+mads=apply(expression_df_log,1,mad)
+top_5000_genes_mads=expression_df_log[rev(order(mads))[1:5000],]
 
 
 ```
@@ -85,9 +114,9 @@ results = ConsensusClusterPlus(
 # Ran hclust and plotted it.
 # Don't know if this is correct.
 
-png("Plots/assignment3/hclust_dendrogram.png")
+png("Plots/assignment3/hclust_dendrogram_log.png")
 
-distance_matrix <- dist(top_5000_genes, method = "euclidean")
+distance_matrix <- dist(top_5000_genes_mads_matrix, method = "euclidean")
 hierarchical_result <- hclust(distance_matrix, method = "complete")
 plot(hierarchical_result, hang = -1, main = "Hierarchical Clustering Dendrogram")
 
@@ -101,21 +130,21 @@ plot(hierarchical_result, hang = -1, main = "Hierarchical Clustering Dendrogram"
 # PAM Clustering
 
 # k=3
-png("Plots/assignment3/PAM_cluster_k3.png")
+png("Plots/assignment3/PAM_cluster_k3_log.png")
 PAM_cluster <- pam(top_5000_genes_mads_matrix, 3, metric="euclidean", stand=FALSE)
 fviz_cluster(PAM_cluster, data = top_5000_genes_mads_matrix, geom="point", main="PAM Clustering")
 dev.off()
 fviz_cluster(PAM_cluster, data = top_5000_genes_mads_matrix, geom="point", main="PAM Clustering")
 
 # k=5
-png("Plots/assignment3/PAM_cluster_k5.png")
+png("Plots/assignment3/PAM_cluster_k5_log.png")
 PAM_cluster <- pam(top_5000_genes_mads_matrix, 5, metric="euclidean", stand=FALSE)
 fviz_cluster(PAM_cluster, data = top_5000_genes_mads_matrix, geom="point", main="PAM Clustering")
 dev.off()
 fviz_cluster(PAM_cluster, data = top_5000_genes_mads_matrix, geom="point", main="PAM Clustering")
 
 # k=10
-png("Plots/assignment3/PAM_cluster_k10.png")
+png("Plots/assignment3/PAM_cluster_k10_log.png")
 PAM_cluster <- pam(top_5000_genes_mads_matrix, 10, metric="euclidean", stand=FALSE)
 fviz_cluster(PAM_cluster, data = top_5000_genes_mads_matrix, geom="point", main="PAM Clustering")
 dev.off()
@@ -123,27 +152,3 @@ fviz_cluster(PAM_cluster, data = top_5000_genes_mads_matrix, geom="point", main=
 
 
 ```
-
-```{r}
-
-
-```
-
-```{r}
-
-
-```
-
-```{r}
-
-
-```
-
-
-
-
-
-
-
-
-
