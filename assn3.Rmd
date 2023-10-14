@@ -143,6 +143,7 @@ fviz_cluster(PAM_cluster, data = top_5000_genes_mads_matrix, geom="point", main=
 dev.off()
 fviz_cluster(PAM_cluster, data = top_5000_genes_mads_matrix, geom="point", main="PAM Clustering")
 
+
 # k=10
 png("Plots/assignment3/PAM_cluster_k10_log.png")
 PAM_cluster <- pam(top_5000_genes_mads_matrix, 10, metric="euclidean", stand=FALSE)
