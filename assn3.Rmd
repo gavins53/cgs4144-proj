@@ -1,23 +1,31 @@
 ```{r}
 # Libraries
 
+required_packages <- c("DESeq2", "readr", "magrittr", "ggplot2", "dplyr", "ConsensusClusterPlus", "cluster", "factoextra", "pheatmap",)
+
+for (package in required_packages) {
+  if (!requireNamespace(package, quietly = TRUE)) {
+    if (package %in% c("ConsensusClusterPlus", "factoextra")) {
+      if (!requireNamespace("BiocManager", quietly = TRUE)) {
+        install.packages("BiocManager")
+      }
+      BiocManager::install(package)
+    } else {
+      install.packages(package)
+    }
+  }
+}
+
+# Load the installed packages
 library(DESeq2)
-
 library(readr)
-
 library(magrittr)
-
 library(ggplot2)
-
 library(dplyr)
-
-BiocManager::install("ConsensusClusterPlus")
 library(ConsensusClusterPlus)
-
 library(cluster)
-
-BiocManager::install("factoextra")
 library(factoextra)
+library(pheatmap)
 
 ```
 
@@ -113,14 +121,21 @@ results = ConsensusClusterPlus(
 ```{r}
 # Ran hclust and plotted it.
 # Don't know if this is correct.
+top_5000_genes_mads_matrix <- t(top_5000_genes_mads_matrix)
 
+```
+
+```{r}
 png("Plots/assignment3/hclust_dendrogram_log.png")
 
 distance_matrix <- dist(top_5000_genes_mads_matrix, method = "euclidean")
 hierarchical_result <- hclust(distance_matrix, method = "complete")
+par(cex=0.8)
 plot(hierarchical_result, hang = -1, main = "Hierarchical Clustering Dendrogram")
 
 dev.off()
+# reduced label size
+par(cex=0.8)
 
 plot(hierarchical_result, hang = -1, main = "Hierarchical Clustering Dendrogram")
 
@@ -129,27 +144,79 @@ plot(hierarchical_result, hang = -1, main = "Hierarchical Clustering Dendrogram"
 ```{r}
 # PAM Clustering
 
+
 # k=3
 png("Plots/assignment3/PAM_cluster_k3_log.png")
-PAM_cluster <- pam(top_5000_genes_mads_matrix, 3, metric="euclidean", stand=FALSE)
-fviz_cluster(PAM_cluster, data = top_5000_genes_mads_matrix, geom="point", main="PAM Clustering")
+PAM_cluster_3 <- pam(top_5000_genes_mads_matrix, 3, metric="euclidean", stand=FALSE)
+fviz_cluster(PAM_cluster_3, data = top_5000_genes_mads_matrix, geom="point", main="PAM Clustering for k = 3")
 dev.off()
-fviz_cluster(PAM_cluster, data = top_5000_genes_mads_matrix, geom="point", main="PAM Clustering")
+fviz_cluster(PAM_cluster_3, data = top_5000_genes_mads_matrix, geom="point", main="PAM Clustering for k = 3")
 
 # k=5
 png("Plots/assignment3/PAM_cluster_k5_log.png")
-PAM_cluster <- pam(top_5000_genes_mads_matrix, 5, metric="euclidean", stand=FALSE)
-fviz_cluster(PAM_cluster, data = top_5000_genes_mads_matrix, geom="point", main="PAM Clustering")
+PAM_cluster_5 <- pam(top_5000_genes_mads_matrix, 5, metric="euclidean", stand=FALSE)
+fviz_cluster(PAM_cluster_5, data = top_5000_genes_mads_matrix, geom="point", main="PAM Clustering for k = 5")
 dev.off()
-fviz_cluster(PAM_cluster, data = top_5000_genes_mads_matrix, geom="point", main="PAM Clustering")
+fviz_cluster(PAM_cluster_5, data = top_5000_genes_mads_matrix, geom="point", main="PAM Clustering for k = 5")
 
 
 # k=10
 png("Plots/assignment3/PAM_cluster_k10_log.png")
-PAM_cluster <- pam(top_5000_genes_mads_matrix, 10, metric="euclidean", stand=FALSE)
-fviz_cluster(PAM_cluster, data = top_5000_genes_mads_matrix, geom="point", main="PAM Clustering")
+PAM_cluster_10 <- pam(top_5000_genes_mads_matrix, 10, metric="euclidean", stand=FALSE)
+fviz_cluster(PAM_cluster_10, data = top_5000_genes_mads_matrix, geom="point", main="PAM Clustering for k = 10")
 dev.off()
-fviz_cluster(PAM_cluster, data = top_5000_genes_mads_matrix, geom="point", main="PAM Clustering")
+fviz_cluster(PAM_cluster_10, data = top_5000_genes_mads_matrix, geom="point", main="PAM Clustering for k = 10")
 
 
 ```
+
+```{r}
+# Load the required libraries
+library(pheatmap)
+
+# Combining cancer and cancer-adjacent under "Cancer" group
+metadata$Group <- ifelse(grepl("Lung_tumor", metadata$refinebio_title), "Cancer", "Non-Cancer")
+```
+
+```{r}
+consensus_assignments <- results[[5]]$consensusClass
+hclust_assignments <- cutree(hierarchical_result, k = 5)
+pam_assignments <- PAM_cluster_5$clustering
+```
+
+```{r}
+metadata$ConsensusCluster <- consensus_assignments
+metadata$HClust <- hclust_assignments
+metadata$PAMCluster <- pam_assignments
+
+```
+
+
+```{r}
+# Define the annotation data
+annotation_data <- data.frame(
+  ConsensusCluster = metadata$ConsensusCluster,
+  PAMCluster = metadata$PAMCluster,
+  HierarchicalCluster = metadata$HClust,
+  SampleGroups = metadata$Group
+)
+
+png("Plots/assignment3/heatmap_clust_annotations.png", width = 800, height = 800)
+
+# Create the heatmap
+heatmap <- pheatmap(
+  t(top_5000_genes_mads_matrix),
+  annotation_col = annotation_data,
+  show_rownames = FALSE,
+  cluster_cols = TRUE,
+  cluster_rows = TRUE,
+  scale = "none",
+  main = "Heatmap with Clustering Annotations"
+)
+
+# Save the heatmap along with annotations
+print(heatmap)
+dev.off()
+```
+
+
