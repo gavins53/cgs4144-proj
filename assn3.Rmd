@@ -1,7 +1,7 @@
 ```{r}
 # Libraries
 
-required_packages <- c("DESeq2", "readr", "magrittr", "ggplot2", "dplyr", "ConsensusClusterPlus", "cluster", "factoextra", "pheatmap",)
+required_packages <- c("DESeq2", "readr", "magrittr", "ggplot2", "dplyr", "ConsensusClusterPlus", "cluster", "factoextra", "pheatmap")
 
 for (package in required_packages) {
   if (!requireNamespace(package, quietly = TRUE)) {
@@ -51,6 +51,9 @@ library(pheatmap)
 
 ```{r}
 # Log-scale the data and use HUGO symbols
+
+metadata_file <- "data/SRP125001/metadata_SRP125001.tsv"
+data_file <- "data/SRP125001/SRP125001.tsv"
 
 # Read in metadata TSV file
 metadata <- readr::read_tsv(metadata_file)
@@ -218,5 +221,197 @@ heatmap <- pheatmap(
 print(heatmap)
 dev.off()
 ```
+
+```{r}
+# Top Variances for top 10, 100, etc.
+
+mads=apply(expression_df_log,1,mad)
+top_10_genes_mads=expression_df_log[rev(order(mads))[1:10],]
+top_100_genes_mads=expression_df_log[rev(order(mads))[1:100],]
+top_1000_genes_mads=expression_df_log[rev(order(mads))[1:1000],]
+top_10000_genes_mads=expression_df_log[rev(order(mads))[1:10000],]
+
+```
+
+```{r}
+# Runs ConsensusClusterPlus on the different number of genes.
+
+top_10_genes_mads_matrix <- as.matrix(top_10_genes_mads)
+results = ConsensusClusterPlus(
+  top_10_genes_mads_matrix, 
+  maxK=5,
+  reps=50,
+  pItem=0.8,
+  pFeature=1, 
+  title=title,
+  clusterAlg="hc",
+  distance="pearson",
+  seed=1262118388.71279
+  )
+
+```
+
+```{r}
+
+top_100_genes_mads_matrix <- as.matrix(top_100_genes_mads)
+results = ConsensusClusterPlus(
+  top_100_genes_mads_matrix, 
+  maxK=5,
+  reps=50,
+  pItem=0.8,
+  pFeature=1, 
+  title=title,
+  clusterAlg="hc",
+  distance="pearson",
+  seed=1262118388.71279
+  )
+```
+
+
+```{r}
+
+top_1000_genes_mads_matrix <- as.matrix(top_1000_genes_mads)
+results = ConsensusClusterPlus(
+  top_1000_genes_mads_matrix, 
+  maxK=5,
+  reps=50,
+  pItem=0.8,
+  pFeature=1, 
+  title=title,
+  clusterAlg="hc",
+  distance="pearson",
+  seed=1262118388.71279
+  )
+```
+
+```{r}
+
+top_10000_genes_mads_matrix <- as.matrix(top_10000_genes_mads)
+results = ConsensusClusterPlus(
+  top_10000_genes_mads_matrix, 
+  maxK=5,
+  reps=50,
+  pItem=0.8,
+  pFeature=1, 
+  title=title,
+  clusterAlg="hc",
+  distance="pearson",
+  seed=1262118388.71279
+  )
+
+```
+
+```{r}
+# Runs hclust on the different number of genes.
+
+# 10 Genes
+png("Plots/assignment3/hclust_dendrogram_10.png")
+distance_matrix <- dist(top_10_genes_mads_matrix, method = "euclidean")
+hierarchical_result <- hclust(distance_matrix, method = "complete")
+par(cex=0.8)
+plot(hierarchical_result, hang = -1, main = "Hierarchical Clustering Dendrogram 10 Genes")
+dev.off()
+par(cex=0.8)
+plot(hierarchical_result, hang = -1, main = "Hierarchical Clustering Dendrogram 10 Genes")
+
+
+# 100 Genes
+png("Plots/assignment3/hclust_dendrogram_100.png")
+distance_matrix <- dist(top_100_genes_mads_matrix, method = "euclidean")
+hierarchical_result <- hclust(distance_matrix, method = "complete")
+par(cex=0.8)
+plot(hierarchical_result, hang = -1, main = "Hierarchical Clustering Dendrogram 100 Genes")
+dev.off()
+par(cex=0.8)
+plot(hierarchical_result, hang = -1, main = "Hierarchical Clustering Dendrogram 100 Genes")
+
+
+# 1000 Genes
+png("Plots/assignment3/hclust_dendrogram_1000.png")
+distance_matrix <- dist(top_1000_genes_mads_matrix, method = "euclidean")
+hierarchical_result <- hclust(distance_matrix, method = "complete")
+par(cex=0.8)
+plot(hierarchical_result, hang = -1, main = "Hierarchical Clustering Dendrogram 1000 Genes")
+dev.off()
+par(cex=0.8)
+plot(hierarchical_result, hang = -1, main = "Hierarchical Clustering Dendrogram 1000 Genes")
+
+
+# 10000 Genes
+png("Plots/assignment3/hclust_dendrogram_10000.png")
+distance_matrix <- dist(top_10000_genes_mads_matrix, method = "euclidean")
+hierarchical_result <- hclust(distance_matrix, method = "complete")
+par(cex=0.8)
+plot(hierarchical_result, hang = -1, main = "Hierarchical Clustering Dendrogram 10000 Genes")
+dev.off()
+par(cex=0.8)
+plot(hierarchical_result, hang = -1, main = "Hierarchical Clustering Dendrogram 10000 Genes")
+
+
+```
+
+
+```{r}
+# Pam Clustering with different number of genes.
+
+# 10 Genes.
+png("Plots/assignment3/PAM_cluster_k5_10.png")
+PAM_cluster <- pam(top_10_genes_mads_matrix, 5, metric="euclidean", stand=FALSE)
+fviz_cluster(PAM_cluster, data = top_10_genes_mads_matrix, geom="point", 
+             main="PAM Clustering for 10 Genes and k = 5")
+dev.off()
+fviz_cluster(PAM_cluster, data = top_10_genes_mads_matrix, geom="point", 
+             main="PAM Clustering for 10 Genes and k = 5")
+
+
+# 100 Genes.
+png("Plots/assignment3/PAM_cluster_k5_100.png")
+PAM_cluster <- pam(top_100_genes_mads_matrix, 5, metric="euclidean", stand=FALSE)
+fviz_cluster(PAM_cluster, data = top_100_genes_mads_matrix, geom="point", 
+             main="PAM Clustering for 100 Genes and k = 5")
+dev.off()
+fviz_cluster(PAM_cluster, data = top_100_genes_mads_matrix, geom="point", 
+             main="PAM Clustering for 100 Genes and k = 5")
+
+
+# 1000 Genes.
+png("Plots/assignment3/PAM_cluster_k5_1000.png")
+PAM_cluster <- pam(top_1000_genes_mads_matrix, 5, metric="euclidean", stand=FALSE)
+fviz_cluster(PAM_cluster, data = top_1000_genes_mads_matrix, geom="point", 
+             main="PAM Clustering for 1000 Genes and k = 5")
+dev.off()
+fviz_cluster(PAM_cluster, data = top_1000_genes_mads_matrix, geom="point", 
+             main="PAM Clustering for 1000 Genes and k = 5")
+
+
+# 10000 Genes.
+png("Plots/assignment3/PAM_cluster_k5_10000.png")
+PAM_cluster <- pam(top_10000_genes_mads_matrix, 5, metric="euclidean", stand=FALSE)
+fviz_cluster(PAM_cluster, data = top_10000_genes_mads_matrix, geom="point", 
+             main="PAM Clustering for 10000 Genes and k = 5")
+dev.off()
+fviz_cluster(PAM_cluster, data = top_10000_genes_mads_matrix, geom="point", 
+             main="PAM Clustering for 10000 Genes and k = 5")
+
+```
+
+
+```{r}
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
