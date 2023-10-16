@@ -127,21 +127,18 @@ results = ConsensusClusterPlus(
 # Don't know if this is correct.
 top_5000_genes_mads_matrix <- t(top_5000_genes_mads_matrix)
 
-```
-
-```{r}
 png("Plots/assignment3/hclust_dendrogram_log.png")
 
 distance_matrix <- dist(top_5000_genes_mads_matrix, method = "euclidean")
 hierarchical_result <- hclust(distance_matrix, method = "complete")
 par(cex=0.8)
-plot(hierarchical_result, hang = -1, main = "Hierarchical Clustering Dendrogram")
+plot(hierarchical_result, hang = -1, main = "Hierarchical Clustering Dendrogram (5000 genes)")
 
 dev.off()
 # reduced label size
 par(cex=0.8)
 
-plot(hierarchical_result, hang = -1, main = "Hierarchical Clustering Dendrogram")
+plot(hierarchical_result, hang = -1, main = "Hierarchical Clustering Dendrogram (5000 genes)")
 
 ```
 
@@ -152,24 +149,24 @@ plot(hierarchical_result, hang = -1, main = "Hierarchical Clustering Dendrogram"
 # k=3
 png("Plots/assignment3/PAM_cluster_k3_log.png")
 PAM_cluster_3 <- pam(top_5000_genes_mads_matrix, 3, metric="euclidean", stand=FALSE)
-fviz_cluster(PAM_cluster_3, data = top_5000_genes_mads_matrix, geom="point", main="PAM Clustering for k = 3")
+fviz_cluster(PAM_cluster_3, data = top_5000_genes_mads_matrix, geom="point", main="PAM Clustering for k = 3 (5000 genes)")
 dev.off()
-fviz_cluster(PAM_cluster_3, data = top_5000_genes_mads_matrix, geom="point", main="PAM Clustering for k = 3")
+fviz_cluster(PAM_cluster_3, data = top_5000_genes_mads_matrix, geom="point", main="PAM Clustering for k = 3 (5000 genes)")
 
 # k=5
 png("Plots/assignment3/PAM_cluster_k5_log.png")
 PAM_cluster_5 <- pam(top_5000_genes_mads_matrix, 5, metric="euclidean", stand=FALSE)
-fviz_cluster(PAM_cluster_5, data = top_5000_genes_mads_matrix, geom="point", main="PAM Clustering for k = 5")
+fviz_cluster(PAM_cluster_5, data = top_5000_genes_mads_matrix, geom="point", main="PAM Clustering for k = 5 (5000 genes)")
 dev.off()
-fviz_cluster(PAM_cluster_5, data = top_5000_genes_mads_matrix, geom="point", main="PAM Clustering for k = 5")
+fviz_cluster(PAM_cluster_5, data = top_5000_genes_mads_matrix, geom="point", main="PAM Clustering for k = 5 (5000 genes)")
 
 
 # k=10
 png("Plots/assignment3/PAM_cluster_k10_log.png")
 PAM_cluster_10 <- pam(top_5000_genes_mads_matrix, 10, metric="euclidean", stand=FALSE)
-fviz_cluster(PAM_cluster_10, data = top_5000_genes_mads_matrix, geom="point", main="PAM Clustering for k = 10")
+fviz_cluster(PAM_cluster_10, data = top_5000_genes_mads_matrix, geom="point", main="PAM Clustering for k = 10 (5000 genes)")
 dev.off()
-fviz_cluster(PAM_cluster_10, data = top_5000_genes_mads_matrix, geom="point", main="PAM Clustering for k = 10")
+fviz_cluster(PAM_cluster_10, data = top_5000_genes_mads_matrix, geom="point", main="PAM Clustering for k = 10 (5000 genes)")
 
 
 ```
@@ -215,7 +212,7 @@ heatmap <- pheatmap(
   cluster_cols = TRUE,
   cluster_rows = TRUE,
   scale = "none",
-  main = "Heatmap with Clustering Annotations"
+  main = "Heatmap with Clustering Annotations for k = 5"
 )
 
 # Save the heatmap along with annotations
@@ -304,16 +301,21 @@ results = ConsensusClusterPlus(
 
 ```{r}
 # Runs hclust on the different number of genes.
+top_10_genes_mads_matrix <- t(top_10_genes_mads_matrix)
+top_100_genes_mads_matrix <- t(top_100_genes_mads_matrix)
+top_1000_genes_mads_matrix <- t(top_1000_genes_mads_matrix)
+top_10000_genes_mads_matrix <- t(top_10000_genes_mads_matrix)
+
 
 # 10 Genes
 png("Plots/assignment3/hclust_dendrogram_10.png")
 distance_matrix <- dist(top_10_genes_mads_matrix, method = "euclidean")
 hierarchical_result <- hclust(distance_matrix, method = "complete")
 par(cex=0.8)
-plot(hierarchical_result, hang = -1, main = "Hierarchical Clustering Dendrogram 10 Genes")
+plot(hierarchical_result, hang = -1, main = "Hierarchical Clustering Dendrogram (10 Genes)")
 dev.off()
 par(cex=0.8)
-plot(hierarchical_result, hang = -1, main = "Hierarchical Clustering Dendrogram 10 Genes")
+plot(hierarchical_result, hang = -1, main = "Hierarchical Clustering Dendrogram (10 Genes)")
 
 
 # 100 Genes
@@ -321,10 +323,10 @@ png("Plots/assignment3/hclust_dendrogram_100.png")
 distance_matrix <- dist(top_100_genes_mads_matrix, method = "euclidean")
 hierarchical_result <- hclust(distance_matrix, method = "complete")
 par(cex=0.8)
-plot(hierarchical_result, hang = -1, main = "Hierarchical Clustering Dendrogram 100 Genes")
+plot(hierarchical_result, hang = -1, main = "Hierarchical Clustering Dendrogram (100 Genes)")
 dev.off()
 par(cex=0.8)
-plot(hierarchical_result, hang = -1, main = "Hierarchical Clustering Dendrogram 100 Genes")
+plot(hierarchical_result, hang = -1, main = "Hierarchical Clustering Dendrogram (100 Genes)")
 
 
 # 1000 Genes
@@ -332,10 +334,10 @@ png("Plots/assignment3/hclust_dendrogram_1000.png")
 distance_matrix <- dist(top_1000_genes_mads_matrix, method = "euclidean")
 hierarchical_result <- hclust(distance_matrix, method = "complete")
 par(cex=0.8)
-plot(hierarchical_result, hang = -1, main = "Hierarchical Clustering Dendrogram 1000 Genes")
+plot(hierarchical_result, hang = -1, main = "Hierarchical Clustering Dendrogram (1000 Genes)")
 dev.off()
 par(cex=0.8)
-plot(hierarchical_result, hang = -1, main = "Hierarchical Clustering Dendrogram 1000 Genes")
+plot(hierarchical_result, hang = -1, main = "Hierarchical Clustering Dendrogram (1000 Genes)")
 
 
 # 10000 Genes
@@ -343,10 +345,10 @@ png("Plots/assignment3/hclust_dendrogram_10000.png")
 distance_matrix <- dist(top_10000_genes_mads_matrix, method = "euclidean")
 hierarchical_result <- hclust(distance_matrix, method = "complete")
 par(cex=0.8)
-plot(hierarchical_result, hang = -1, main = "Hierarchical Clustering Dendrogram 10000 Genes")
+plot(hierarchical_result, hang = -1, main = "Hierarchical Clustering Dendrogram (10000 Genes)")
 dev.off()
 par(cex=0.8)
-plot(hierarchical_result, hang = -1, main = "Hierarchical Clustering Dendrogram 10000 Genes")
+plot(hierarchical_result, hang = -1, main = "Hierarchical Clustering Dendrogram (10000 Genes)")
 
 
 ```
@@ -359,40 +361,41 @@ plot(hierarchical_result, hang = -1, main = "Hierarchical Clustering Dendrogram 
 png("Plots/assignment3/PAM_cluster_k5_10.png")
 PAM_cluster_10genes <- pam(top_10_genes_mads_matrix, 5, metric="euclidean", stand=FALSE)
 fviz_cluster(PAM_cluster_10genes, data = top_10_genes_mads_matrix, geom="point", 
-             main="PAM Clustering for 10 Genes and k = 5")
+             main="PAM Clustering for k = 5 (10 genes)")
 dev.off()
 fviz_cluster(PAM_cluster_10genes, data = top_10_genes_mads_matrix, geom="point", 
-             main="PAM Clustering for 10 Genes and k = 5")
+             main="PAM Clustering for k = 5 (10 genes)")
+fviz_cluster(PAM_cluster_10, data = top_5000_genes_mads_matrix, geom="point", main="PAM Clustering for k = 10 (5000 genes)")
 
 
 # 100 Genes.
 png("Plots/assignment3/PAM_cluster_k5_100.png")
 PAM_cluster_100genes <- pam(top_100_genes_mads_matrix, 5, metric="euclidean", stand=FALSE)
 fviz_cluster(PAM_cluster_100genes, data = top_100_genes_mads_matrix, geom="point", 
-             main="PAM Clustering for 100 Genes and k = 5")
+             main="PAM Clustering for k = 5 (100 genes)")
 dev.off()
 fviz_cluster(PAM_cluster_100genes, data = top_100_genes_mads_matrix, geom="point", 
-             main="PAM Clustering for 100 Genes and k = 5")
+             main="PAM Clustering for k = 5 (100 genes)")
 
 
 # 1000 Genes.
 png("Plots/assignment3/PAM_cluster_k5_1000.png")
 PAM_cluster_1000genes <- pam(top_1000_genes_mads_matrix, 5, metric="euclidean", stand=FALSE)
 fviz_cluster(PAM_cluster_1000genes, data = top_1000_genes_mads_matrix, geom="point", 
-             main="PAM Clustering for 1000 Genes and k = 5")
+             main="PAM Clustering for k = 5 (1000 genes)")
 dev.off()
 fviz_cluster(PAM_cluster_1000genes, data = top_1000_genes_mads_matrix, geom="point", 
-             main="PAM Clustering for 1000 Genes and k = 5")
+             main="PAM Clustering for k = 5 (1000 genes)")
 
 
 # 10000 Genes.
 png("Plots/assignment3/PAM_cluster_k5_10000.png")
 PAM_cluster_10000genes <- pam(top_10000_genes_mads_matrix, 5, metric="euclidean", stand=FALSE)
 fviz_cluster(PAM_cluster_10000genes, data = top_10000_genes_mads_matrix, geom="point", 
-             main="PAM Clustering for 10000 Genes and k = 5")
+             main="PAM Clustering for k = 5 (10000 genes)")
 dev.off()
 fviz_cluster(PAM_cluster_10000genes, data = top_10000_genes_mads_matrix, geom="point", 
-             main="PAM Clustering for 10000 Genes and k = 5")
+             main="PAM Clustering for k = 5 (10000 genes)")
 
 ```
 
@@ -413,10 +416,10 @@ for(i in 1:5){gene_count <- c(gene_count, "10")}
 cluster_num <- c()
 for(i in 1:4){cluster_num <- c("1", "2", "3", "4", "5")}
 
-cluster_frequency <- c(unlist(lapply(PAM_cluster_10000genes$clusinfo[,1], function(x) x / 10000)), 
-                       unlist(lapply(PAM_cluster_1000genes$clusinfo[,1], function(x) x / 1000)), 
-                       unlist(lapply(PAM_cluster_100genes$clusinfo[,1], function(x) x / 100)), 
-                       unlist(lapply(PAM_cluster_10genes$clusinfo[,1], function(x) x / 10))
+cluster_frequency <- c(unlist(lapply(PAM_cluster_10000genes$clusinfo[,1], function(x) x / 60)), 
+                       unlist(lapply(PAM_cluster_1000genes$clusinfo[,1], function(x) x / 60)), 
+                       unlist(lapply(PAM_cluster_100genes$clusinfo[,1], function(x) x / 60)), 
+                       unlist(lapply(PAM_cluster_10genes$clusinfo[,1], function(x) x / 60))
                        )
 
 alluvial_df <- data.frame(GeneCount = gene_count, 
@@ -428,16 +431,16 @@ alluvial_df <- data.frame(GeneCount = gene_count,
 
 ```{r}
 # Alluvial Plot based on PAM clustering.
-# Cannot figure out how to change the colors.
 ggplot(as.data.frame(alluvial_df),
-       aes(y = ClusterFrequencyPercentage, axis1 = GeneCount, axis2 = ClusterNumber)) +
+       aes(y = ClusterFrequencyPercentage, axis1 = GeneCount, axis2 = ClusterNumber, fill = ClusterNumber)) +
   geom_alluvium(width = 1/12) +
-  geom_stratum(width = 1/12, fill = "black", color = "grey") +
-  geom_label(stat = "stratum", aes(label = after_stat(stratum))) +
+  geom_stratum(width = 1/12, color = "grey") +
+  geom_text(stat = "stratum", aes(label = after_stat(stratum))) +
   scale_x_discrete(limits = c("Gene Count", "Cluster Number"), expand = c(.05, .05)) +
   scale_fill_brewer(type = "qual", palette = "Set1") +
-  ggtitle("Cluster Frequency Percentage")
+  ggtitle("PAM Clustering Frequency Distribution for k = 5")
 
+ggsave("Plots/assignment3/PAM_alluvial_plot.png", plot = last_plot(), width = 8, height = 6, units = "in", dpi = 300)
 ```
 
 
