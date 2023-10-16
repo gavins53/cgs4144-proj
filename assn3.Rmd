@@ -1,7 +1,7 @@
 ```{r}
 # Libraries
 
-required_packages <- c("DESeq2", "readr", "magrittr", "ggplot2", "dplyr", "ConsensusClusterPlus", "cluster", "factoextra", "pheatmap")
+required_packages <- c("DESeq2", "readr", "magrittr", "ggplot2", "dplyr", "ConsensusClusterPlus", "cluster", "factoextra", "pheatmap", "ggalluvial")
 
 for (package in required_packages) {
   if (!requireNamespace(package, quietly = TRUE)) {
@@ -26,6 +26,7 @@ library(ConsensusClusterPlus)
 library(cluster)
 library(factoextra)
 library(pheatmap)
+library(ggalluvial)
 
 ```
 
@@ -356,48 +357,86 @@ plot(hierarchical_result, hang = -1, main = "Hierarchical Clustering Dendrogram 
 
 # 10 Genes.
 png("Plots/assignment3/PAM_cluster_k5_10.png")
-PAM_cluster <- pam(top_10_genes_mads_matrix, 5, metric="euclidean", stand=FALSE)
-fviz_cluster(PAM_cluster, data = top_10_genes_mads_matrix, geom="point", 
+PAM_cluster_10genes <- pam(top_10_genes_mads_matrix, 5, metric="euclidean", stand=FALSE)
+fviz_cluster(PAM_cluster_10genes, data = top_10_genes_mads_matrix, geom="point", 
              main="PAM Clustering for 10 Genes and k = 5")
 dev.off()
-fviz_cluster(PAM_cluster, data = top_10_genes_mads_matrix, geom="point", 
+fviz_cluster(PAM_cluster_10genes, data = top_10_genes_mads_matrix, geom="point", 
              main="PAM Clustering for 10 Genes and k = 5")
 
 
 # 100 Genes.
 png("Plots/assignment3/PAM_cluster_k5_100.png")
-PAM_cluster <- pam(top_100_genes_mads_matrix, 5, metric="euclidean", stand=FALSE)
-fviz_cluster(PAM_cluster, data = top_100_genes_mads_matrix, geom="point", 
+PAM_cluster_100genes <- pam(top_100_genes_mads_matrix, 5, metric="euclidean", stand=FALSE)
+fviz_cluster(PAM_cluster_100genes, data = top_100_genes_mads_matrix, geom="point", 
              main="PAM Clustering for 100 Genes and k = 5")
 dev.off()
-fviz_cluster(PAM_cluster, data = top_100_genes_mads_matrix, geom="point", 
+fviz_cluster(PAM_cluster_100genes, data = top_100_genes_mads_matrix, geom="point", 
              main="PAM Clustering for 100 Genes and k = 5")
 
 
 # 1000 Genes.
 png("Plots/assignment3/PAM_cluster_k5_1000.png")
-PAM_cluster <- pam(top_1000_genes_mads_matrix, 5, metric="euclidean", stand=FALSE)
-fviz_cluster(PAM_cluster, data = top_1000_genes_mads_matrix, geom="point", 
+PAM_cluster_1000genes <- pam(top_1000_genes_mads_matrix, 5, metric="euclidean", stand=FALSE)
+fviz_cluster(PAM_cluster_1000genes, data = top_1000_genes_mads_matrix, geom="point", 
              main="PAM Clustering for 1000 Genes and k = 5")
 dev.off()
-fviz_cluster(PAM_cluster, data = top_1000_genes_mads_matrix, geom="point", 
+fviz_cluster(PAM_cluster_1000genes, data = top_1000_genes_mads_matrix, geom="point", 
              main="PAM Clustering for 1000 Genes and k = 5")
 
 
 # 10000 Genes.
 png("Plots/assignment3/PAM_cluster_k5_10000.png")
-PAM_cluster <- pam(top_10000_genes_mads_matrix, 5, metric="euclidean", stand=FALSE)
-fviz_cluster(PAM_cluster, data = top_10000_genes_mads_matrix, geom="point", 
+PAM_cluster_10000genes <- pam(top_10000_genes_mads_matrix, 5, metric="euclidean", stand=FALSE)
+fviz_cluster(PAM_cluster_10000genes, data = top_10000_genes_mads_matrix, geom="point", 
              main="PAM Clustering for 10000 Genes and k = 5")
 dev.off()
-fviz_cluster(PAM_cluster, data = top_10000_genes_mads_matrix, geom="point", 
+fviz_cluster(PAM_cluster_10000genes, data = top_10000_genes_mads_matrix, geom="point", 
              main="PAM Clustering for 10000 Genes and k = 5")
 
 ```
 
 
 ```{r}
+# Trying to make alluvial plot based on the PAM clustering.
+# This concept does not even make sense because assignment to each cluster is arbitrary anyways.
 
+
+# Sets up and creates the data frame used for alluvial plotting.
+# Uses percentage of clustering frequency.
+gene_count <- c()
+for(i in 1:5){gene_count <- c(gene_count, "10000")}
+for(i in 1:5){gene_count <- c(gene_count, "1000")}
+for(i in 1:5){gene_count <- c(gene_count, "100")}
+for(i in 1:5){gene_count <- c(gene_count, "10")}
+
+cluster_num <- c()
+for(i in 1:4){cluster_num <- c("1", "2", "3", "4", "5")}
+
+cluster_frequency <- c(unlist(lapply(PAM_cluster_10000genes$clusinfo[,1], function(x) x / 10000)), 
+                       unlist(lapply(PAM_cluster_1000genes$clusinfo[,1], function(x) x / 1000)), 
+                       unlist(lapply(PAM_cluster_100genes$clusinfo[,1], function(x) x / 100)), 
+                       unlist(lapply(PAM_cluster_10genes$clusinfo[,1], function(x) x / 10))
+                       )
+
+alluvial_df <- data.frame(GeneCount = gene_count, 
+                          ClusterNumber = cluster_num, 
+                          ClusterFrequencyPercentage = cluster_frequency)
+
+```
+
+
+```{r}
+# Alluvial Plot based on PAM clustering.
+# Cannot figure out how to change the colors.
+ggplot(as.data.frame(alluvial_df),
+       aes(y = ClusterFrequencyPercentage, axis1 = GeneCount, axis2 = ClusterNumber)) +
+  geom_alluvium(width = 1/12) +
+  geom_stratum(width = 1/12, fill = "black", color = "grey") +
+  geom_label(stat = "stratum", aes(label = after_stat(stratum))) +
+  scale_x_discrete(limits = c("Gene Count", "Cluster Number"), expand = c(.05, .05)) +
+  scale_fill_brewer(type = "qual", palette = "Set1") +
+  ggtitle("Cluster Frequency Percentage")
 
 ```
 
