@@ -1,7 +1,7 @@
 ```{r}
 # Libraries
 
-required_packages <- c("DESeq2", "readr", "magrittr", "ggplot2", "dplyr", "ConsensusClusterPlus", "cluster", "factoextra", "pheatmap", "ggalluvial")
+required_packages <- c("DESeq2", "readr", "magrittr", "ggplot2", "dplyr", "ConsensusClusterPlus", "cluster", "factoextra", "pheatmap", "ggalluvial", "mclust")
 
 for (package in required_packages) {
   if (!requireNamespace(package, quietly = TRUE)) {
@@ -311,45 +311,46 @@ top_10000_genes_mads_matrix <- t(top_10000_genes_mads_matrix)
 # 10 Genes
 png("Plots/assignment3/hclust_dendrogram_10.png")
 distance_matrix <- dist(top_10_genes_mads_matrix, method = "euclidean")
-hierarchical_result <- hclust(distance_matrix, method = "complete")
+hierarchical_result_10 <- hclust(distance_matrix, method = "complete")
 par(cex=0.8)
-plot(hierarchical_result, hang = -1, main = "Hierarchical Clustering Dendrogram (10 Genes)")
+plot(hierarchical_result_10, hang = -1, main = "Hierarchical Clustering Dendrogram (10 Genes)")
 dev.off()
 par(cex=0.8)
-plot(hierarchical_result, hang = -1, main = "Hierarchical Clustering Dendrogram (10 Genes)")
+plot(hierarchical_result_10, hang = -1, main = "Hierarchical Clustering Dendrogram (10 Genes)")
 
 
 # 100 Genes
 png("Plots/assignment3/hclust_dendrogram_100.png")
 distance_matrix <- dist(top_100_genes_mads_matrix, method = "euclidean")
-hierarchical_result <- hclust(distance_matrix, method = "complete")
+hierarchical_result_100 <- hclust(distance_matrix, method = "complete")
 par(cex=0.8)
-plot(hierarchical_result, hang = -1, main = "Hierarchical Clustering Dendrogram (100 Genes)")
+plot(hierarchical_result_100, hang = -1, main = "Hierarchical Clustering Dendrogram (100 Genes)")
 dev.off()
 par(cex=0.8)
-plot(hierarchical_result, hang = -1, main = "Hierarchical Clustering Dendrogram (100 Genes)")
+plot(hierarchical_result_100, hang = -1, main = "Hierarchical Clustering Dendrogram (100 Genes)")
 
 
 # 1000 Genes
 png("Plots/assignment3/hclust_dendrogram_1000.png")
 distance_matrix <- dist(top_1000_genes_mads_matrix, method = "euclidean")
-hierarchical_result <- hclust(distance_matrix, method = "complete")
+hierarchical_result_1000 <- hclust(distance_matrix, method = "complete")
 par(cex=0.8)
-plot(hierarchical_result, hang = -1, main = "Hierarchical Clustering Dendrogram (1000 Genes)")
+plot(hierarchical_result_1000, hang = -1, main = "Hierarchical Clustering Dendrogram (1000 Genes)")
 dev.off()
 par(cex=0.8)
-plot(hierarchical_result, hang = -1, main = "Hierarchical Clustering Dendrogram (1000 Genes)")
+plot(hierarchical_result_1000, hang = -1, main = "Hierarchical Clustering Dendrogram (1000 Genes)")
 
 
 # 10000 Genes
 png("Plots/assignment3/hclust_dendrogram_10000.png")
 distance_matrix <- dist(top_10000_genes_mads_matrix, method = "euclidean")
-hierarchical_result <- hclust(distance_matrix, method = "complete")
+hierarchical_result_10000 <- hclust(distance_matrix, method = "complete")
 par(cex=0.8)
-plot(hierarchical_result, hang = -1, main = "Hierarchical Clustering Dendrogram (10000 Genes)")
+plot(hierarchical_result_10000, hang = -1, main = "Hierarchical Clustering Dendrogram (10000 Genes)")
 dev.off()
 par(cex=0.8)
-plot(hierarchical_result, hang = -1, main = "Hierarchical Clustering Dendrogram (10000 Genes)")
+plot(hierarchical_result_10000, hang = -1, main = "Hierarchical Clustering Dendrogram (10000 Genes)")
+
 
 
 ```
@@ -583,9 +584,35 @@ ggsave("Plots/assignment3/K_Means_Alluvial_Plot.png", plot = last_plot(), width 
 
 ```
 
+```{r}
+```{r}
+gene_count_hclust <- rep(c("10000", "1000", "100", "10"), each = 5)
+cluster_num_hclust <- rep(1:5, times = 4)
 
+# Calculate the cluster frequencies
+cluster_frequency_hclust <- as.vector(table(c(clusters_10000, clusters_1000, clusters_100, clusters_10)) / 60)
 
+# Create a data frame with the information
+data <- data.frame(
+  GeneCount = gene_count_hclust,
+  ClusterNumber = factor(as.character(cluster_num_hclust)),  # Convert to factor
+  ClusterFrequency = cluster_frequency_hclust
+)
 
+```
 
+```{r}
 
+# Create the alluvial plot
+alluvial_plot <- ggplot(data, aes(y = ClusterFrequency, axis1 = GeneCount, axis2 = ClusterNumber, fill = ClusterNumber)) +
+  geom_alluvium(width = 1/12) +
+  geom_stratum(width = 1/12, color = "grey") +
+  geom_text(stat = "stratum", aes(label = after_stat(stratum))) +
+  scale_x_discrete(limits = c("Gene Count", "Cluster Number"), expand = c(.05, .05)) +
+  scale_fill_brewer(type = "qual", palette = "Set1") +
+  ggtitle("Hierarchical Clustering Frequency Distribution for k = 5")
+
+ggsave("Plots/assignment3/Hclust_Alluvial_Plot.png", plot = last_plot(), width = 8, height = 6, units = "in", dpi = 300)
+```
+```
 
