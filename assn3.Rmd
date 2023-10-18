@@ -173,55 +173,6 @@ fviz_cluster(PAM_cluster_10, data = top_5000_genes_mads_matrix, geom="point", ma
 ```
 
 ```{r}
-# Load the required libraries
-library(pheatmap)
-
-# Combining cancer and cancer-adjacent under "Cancer" group
-metadata$Group <- ifelse(grepl("Lung_tumor", metadata$refinebio_title), "Cancer", "Non-Cancer")
-```
-
-```{r}
-consensus_assignments <- results[[5]]$consensusClass
-hclust_assignments <- cutree(hierarchical_result, k = 5)
-pam_assignments <- PAM_cluster_5$clustering
-```
-
-```{r}
-metadata$ConsensusCluster <- consensus_assignments
-metadata$HClust <- hclust_assignments
-metadata$PAMCluster <- pam_assignments
-
-```
-
-
-```{r}
-# Define the annotation data
-annotation_data <- data.frame(
-  ConsensusCluster = metadata$ConsensusCluster,
-  PAMCluster = metadata$PAMCluster,
-  HierarchicalCluster = metadata$HClust,
-  SampleGroups = metadata$Group
-)
-
-png("Plots/assignment3/heatmap_clust_annotations.png", width = 800, height = 800)
-
-# Create the heatmap
-heatmap <- pheatmap(
-  t(top_5000_genes_mads_matrix),
-  annotation_col = annotation_data,
-  show_rownames = FALSE,
-  cluster_cols = TRUE,
-  cluster_rows = TRUE,
-  scale = "none",
-  main = "Heatmap with Clustering Annotations for k = 5"
-)
-
-# Save the heatmap along with annotations
-print(heatmap)
-dev.off()
-```
-
-```{r}
 # Top Variances for top 10, 100, etc.
 
 mads=apply(expression_df_log,1,mad)
@@ -585,11 +536,14 @@ ggsave("Plots/assignment3/K_Means_Alluvial_Plot.png", plot = last_plot(), width 
 ```
 
 ```{r}
-```{r}
 gene_count_hclust <- rep(c("10000", "1000", "100", "10"), each = 5)
 cluster_num_hclust <- rep(1:5, times = 4)
 
 # Calculate the cluster frequencies
+clusters_10 <- cutree(hierarchical_result_10, k = 5)
+clusters_100 <- cutree(hierarchical_result_100, k = 5)
+clusters_1000 <- cutree(hierarchical_result_1000, k = 5)
+clusters_10000 <- cutree(hierarchical_result_10000, k = 5)
 cluster_frequency_hclust <- as.vector(table(c(clusters_10000, clusters_1000, clusters_100, clusters_10)) / 60)
 
 # Create a data frame with the information
@@ -614,5 +568,136 @@ alluvial_plot <- ggplot(data, aes(y = ClusterFrequency, axis1 = GeneCount, axis2
 
 ggsave("Plots/assignment3/Hclust_Alluvial_Plot.png", plot = last_plot(), width = 8, height = 6, units = "in", dpi = 300)
 ```
+
+```{r}
+# Combining cancer and cancer-adjacent under "Cancer" group
+metadata$Group <- ifelse(grepl("Lung_tumor", metadata$refinebio_title), "Cancer", "Non-Cancer")
+```
+
+```{r}
+km_assignments <- km.res3.5000$cluster
+hclust_assignments <- cutree(hierarchical_result, k = 5)
+pam_assignments <- PAM_cluster_5$clustering
+```
+
+```{r}
+metadata$KMeans <- km_assignments
+metadata$HClust <- hclust_assignments
+metadata$PAMCluster <- pam_assignments
+
+```
+
+
+```{r}
+# Define the annotation data
+annotation_data <- data.frame(
+  KMeansCluster = metadata$KMeans,
+  PAMCluster = metadata$PAMCluster,
+  HierarchicalCluster = metadata$HClust,
+  SampleGroups = metadata$Group
+)
+
+png("Plots/assignment3/heatmap_clust_annotations_2.png", width = 800, height = 800)
+
+# Create the heatmap
+heatmap <- pheatmap(
+  t(top_5000_genes_mads_matrix),
+  annotation_col = annotation_data,
+  show_rownames = FALSE,
+  cluster_cols = TRUE,
+  cluster_rows = TRUE,
+  scale = "none",
+  main = "Heatmap with Clustering Annotations for k = 5"
+)
+
+# Save the heatmap along with annotations
+print(heatmap)
+dev.off()
+```
+```{r}
+
+# 5000 genes
+metadata$KMeans2_5000 <- km.res2.5000$cluster
+metadata$HClust3_5000 <- cutree(hierarchical_result, k = 3)
+metadata$PAMCluster3_5000 <- PAM_cluster_3$clustering
+
+metadata$KMeans3_5000 <- km.res3.5000$cluster
+metadata$HClust5_5000 <- cutree(hierarchical_result, k = 5)
+metadata$PAMCluster5_5000 <- PAM_cluster_5$clustering
+
+metadata$KMeans4_5000 <- km.res4.5000$cluster
+metadata$HClust10_5000 <- cutree(hierarchical_result, k = 10)
+metadata$PAMCluster10_5000 <- PAM_cluster_10$clustering
+
+# 10 genes
+metadata$KMeans3_10 <- km.res3.10$cluster
+metadata$HClust5_10 <- cutree(hierarchical_result_10, k = 5)
+metadata$PAMCluster5_10 <- PAM_cluster_10genes$clustering
+
+# 100 genes
+metadata$KMeans3_100 <- km.res3.100$cluster
+metadata$HClust5_100 <- cutree(hierarchical_result_100, k = 5)
+metadata$PAMCluster5_100 <- PAM_cluster_100genes$clustering
+
+# 1000 genes
+metadata$KMeans3_1000 <- km.res3.1000$cluster
+metadata$HClust5_1000 <- cutree(hierarchical_result_1000, k = 5)
+metadata$PAMCluster5_1000 <- PAM_cluster_1000genes$clustering
+
+# 10000 genes
+metadata$KMeans3_10000 <- km.res3.10000$cluster
+metadata$HClust5_10000 <- cutree(hierarchical_result_10000, k = 5)
+metadata$PAMCluster5_10000 <- PAM_cluster_10000genes$clustering
+```
+
+```{r}
+
+# Create a function to perform a chi-squared test
+perform_chi_squared_test <- function(data, cluster_column, group_column) {
+  contingency_table <- table(data[[cluster_column]], data[[group_column]])
+  chi_squared_result <- chisq.test(contingency_table)
+  return(chi_squared_result)
+}
+
+# Perform chi-squared tests for each clustering result
+clustering_results <- list(
+  KMeans2_5000 = perform_chi_squared_test(metadata, "KMeans2_5000", "Group"),
+  KMeans3_5000 = perform_chi_squared_test(metadata, "KMeans3_5000", "Group"),
+  KMeans4_5000 = perform_chi_squared_test(metadata, "KMeans4_5000", "Group"),
+  KMeans3_10 = perform_chi_squared_test(metadata, "KMeans3_10", "Group"),
+  KMeans3_100 = perform_chi_squared_test(metadata, "KMeans3_100", "Group"),
+  KMeans3_1000 = perform_chi_squared_test(metadata, "KMeans3_1000", "Group"),
+  KMeans3_10000 = perform_chi_squared_test(metadata, "KMeans3_10000", "Group"),
+  HClust3_5000 = perform_chi_squared_test(metadata, "HClust3_5000", "Group"),
+  HClust5_5000 = perform_chi_squared_test(metadata, "HClust5_5000", "Group"),
+  HClust10_5000 = perform_chi_squared_test(metadata, "HClust10_5000", "Group"),
+  HClust5_10 = perform_chi_squared_test(metadata, "HClust5_10", "Group"),
+  HClust5_100 = perform_chi_squared_test(metadata, "HClust5_100", "Group"),
+  HClust5_1000 = perform_chi_squared_test(metadata, "HClust5_1000", "Group"),
+  HClust5_10000 = perform_chi_squared_test(metadata, "HClust5_10000", "Group"),
+  PAMCluster3_5000 = perform_chi_squared_test(metadata, "PAMCluster3_5000", "Group"),
+  PAMCluster5_5000 = perform_chi_squared_test(metadata, "PAMCluster5_5000", "Group"),
+  PAMCluster10_5000 = perform_chi_squared_test(metadata, "PAMCluster10_5000", "Group"),
+  PAMCluster5_10 = perform_chi_squared_test(metadata, "PAMCluster5_10", "Group"),
+  PAMCluster5_100 = perform_chi_squared_test(metadata, "PAMCluster5_100", "Group"),
+  PAMCluster5_1000 = perform_chi_squared_test(metadata, "PAMCluster5_1000", "Group"),
+  PAMCluster5_10000 = perform_chi_squared_test(metadata, "PAMCluster5_10000", "Group")
+)
+
+# Extract p-values from the chi-squared test results
+p_values <- sapply(clustering_results, function(result) result$p.value)
+
+# Adjust p-values for multiple hypothesis testing
+adjusted_p_values <- p.adjust(p_values, method = "bonferroni")
+
+# Create a table with statistical test results
+test_results <- data.frame(
+  Clustering_Method = names(clustering_results),
+  P_Value = p_values,
+  Adjusted_P_Value = adjusted_p_values
+)
+
+# Print the table
+print(test_results)
 ```
 
