@@ -27,6 +27,7 @@ library(cluster)
 library(factoextra)
 library(pheatmap)
 library(ggalluvial)
+library(mclust)
 
 ```
 
@@ -426,6 +427,7 @@ alluvial_df <- data.frame(GeneCount = gene_count,
                           ClusterNumber = cluster_num, 
                           ClusterFrequencyPercentage = cluster_frequency)
 
+
 ```
 
 
@@ -443,13 +445,143 @@ ggplot(as.data.frame(alluvial_df),
 ggsave("Plots/assignment3/PAM_alluvial_plot.png", plot = last_plot(), width = 8, height = 6, units = "in", dpi = 300)
 ```
 
+```{r}
+# K Means
+
+# Finding Optimal K
+
+png("Plots/assignment3/K_Means_Elbow_Method.png")
+fviz_nbclust(top_5000_genes_mads_matrix, FUNcluster = kmeans, method = "wss")
+dev.off()
+fviz_nbclust(top_5000_genes_mads_matrix, FUNcluster = kmeans, method = "wss")
+
+png("Plots/assignment3/K_Means_Silhouette_Method.png")
+fviz_nbclust(top_5000_genes_mads_matrix, FUNcluster = kmeans, method = "silhouette")
+dev.off()
+fviz_nbclust(top_5000_genes_mads_matrix, FUNcluster = kmeans, method = "silhouette")
 
 
+```
+
+```{r}
+# K Means - Creating Clusters
+
+km.res2.5000 <- kmeans(top_5000_genes_mads_matrix, centers = 2, nstart = 25)
+
+km.res3.5000 <- kmeans(top_5000_genes_mads_matrix, centers = 3, nstart = 25)
+
+km.res4.5000 <- kmeans(top_5000_genes_mads_matrix, centers = 4, nstart = 25)
 
 
+```
+
+```{r}
+# K Means - Plotting Clusters
+
+png("Plots/assignment3/K_Means_5000_2.png")
+fviz_cluster(km.res2.5000, data = top_5000_genes_mads_matrix, geom="point")
+dev.off()
+fviz_cluster(km.res2.5000, data = top_5000_genes_mads_matrix, geom="point")
+
+png("Plots/assignment3/K_Means_5000_3.png")
+fviz_cluster(km.res3.5000, data = top_5000_genes_mads_matrix, geom="point")
+dev.off()
+fviz_cluster(km.res3.5000, data = top_5000_genes_mads_matrix, geom="point")
 
 
+png("Plots/assignment3/K_Means_5000_4.png")
+fviz_cluster(km.res4.5000, data = top_5000_genes_mads_matrix, geom="point")
+dev.off()
+fviz_cluster(km.res4.5000, data = top_5000_genes_mads_matrix, geom="point")
 
+```
+
+
+```{r}
+# K Means - Creating Clusters w/ Varied Number of Genes
+
+km.res3.10 <- kmeans(top_10_genes_mads_matrix, centers = 3, nstart = 25)
+
+km.res3.100 <- kmeans(top_100_genes_mads_matrix, centers = 3, nstart = 25)
+
+km.res3.1000 <- kmeans(top_1000_genes_mads_matrix, centers = 3, nstart = 25)
+
+km.res3.10000 <- kmeans(top_10000_genes_mads_matrix, centers = 3, nstart = 25)
+
+```
+
+```{r}
+# K Means - Plotting Clusters w/ Varied Number of Genes
+
+png("Plots/assignment3/K_Means_10.png")
+fviz_cluster(km.res3.10, data = top_10_genes_mads_matrix, geom="point")
+dev.off()
+fviz_cluster(km.res3.10, data = top_10_genes_mads_matrix, geom="point")
+
+png("Plots/assignment3/K_Means_100.png")
+fviz_cluster(km.res3.100, data = top_100_genes_mads_matrix, geom="point")
+dev.off()
+fviz_cluster(km.res3.100, data = top_100_genes_mads_matrix, geom="point")
+
+png("Plots/assignment3/K_Means_1000.png")
+fviz_cluster(km.res3.1000, data = top_1000_genes_mads_matrix, geom="point")
+dev.off()
+fviz_cluster(km.res3.1000, data = top_1000_genes_mads_matrix, geom="point")
+
+png("Plots/assignment3/K_Means_10000.png")
+fviz_cluster(km.res3.10000, data = top_10000_genes_mads_matrix, geom="point")
+dev.off()
+fviz_cluster(km.res3.10000, data = top_10000_genes_mads_matrix, geom="point")
+
+```
+
+
+```{r}
+# Alluvial Plot based on K-Means clustering
+
+gene_count_k_means <- c()
+for(i in 1:3){gene_count_k_means <- c(gene_count_k_means, "10000")}
+for(i in 1:3){gene_count_k_means <- c(gene_count_k_means, "1000")}
+for(i in 1:3){gene_count_k_means <- c(gene_count_k_means, "100")}
+for(i in 1:3){gene_count_k_means <- c(gene_count_k_means, "10")}
+
+cluster_num_k_means <- c()
+for(i in 1:4){cluster_num_k_means <- c("1", "2", "3")}
+
+cluster_frequency_k_means <- as.vector(table(km.res3.10000$cluster)/60)
+
+cluster_frequency_k_means <- append(cluster_frequency_k_means, as.vector(table(km.res3.1000$cluster)/60))
+
+cluster_frequency_k_means <- append(cluster_frequency_k_means, as.vector(table(km.res3.100$cluster)/60))
+
+cluster_frequency_k_means <- append(cluster_frequency_k_means, as.vector(table(km.res3.10$cluster)/60))
+
+gene_count_k_means
+
+cluster_num_k_means
+
+cluster_frequency_k_means
+
+
+```
+
+```{r}
+alluvial_df_k_means <- data.frame(GeneCount = gene_count_k_means, 
+                          ClusterNumber = cluster_num_k_means, 
+                          ClusterFrequencyPercentage = cluster_frequency_k_means)
+
+ggplot(as.data.frame(alluvial_df_k_means),
+       aes(y = ClusterFrequencyPercentage, axis1 = GeneCount, axis2 = ClusterNumber, fill = ClusterNumber)) +
+  geom_alluvium(width = 1/12) +
+  geom_stratum(width = 1/12, color = "grey") +
+  geom_text(stat = "stratum", aes(label = after_stat(stratum))) +
+  scale_x_discrete(limits = c("Gene Count", "Cluster Number"), expand = c(.05, .05)) +
+  scale_fill_brewer(type = "qual", palette = "Set1") +
+  ggtitle("K-Means Clustering Frequency Distribution for k = 3")
+
+ggsave("Plots/assignment3/K_Means_Alluvial_Plot.png", plot = last_plot(), width = 8, height = 6, units = "in", dpi = 300)
+
+```
 
 
 
