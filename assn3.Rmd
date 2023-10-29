@@ -1,0 +1,703 @@
+```{r}
+# Libraries
+
+required_packages <- c("DESeq2", "readr", "magrittr", "ggplot2", "dplyr", "ConsensusClusterPlus", "cluster", "factoextra", "pheatmap", "ggalluvial", "mclust")
+
+for (package in required_packages) {
+  if (!requireNamespace(package, quietly = TRUE)) {
+    if (package %in% c("ConsensusClusterPlus", "factoextra")) {
+      if (!requireNamespace("BiocManager", quietly = TRUE)) {
+        install.packages("BiocManager")
+      }
+      BiocManager::install(package)
+    } else {
+      install.packages(package)
+    }
+  }
+}
+
+# Load the installed packages
+library(DESeq2)
+library(readr)
+library(magrittr)
+library(ggplot2)
+library(dplyr)
+library(ConsensusClusterPlus)
+library(cluster)
+library(factoextra)
+library(pheatmap)
+library(ggalluvial)
+library(mclust)
+
+```
+
+```{r}
+## Original code, not log-scaled
+
+# metadata <- readr::read_tsv("data/SRP125001/metadata_SRP125001.tsv")
+
+# Read in data TSV file
+# expression_df <- readr::read_tsv("data/SRP125001/SRP125001.tsv") %>%
+  # Tuck away the Gene ID column as row names
+  # tibble::column_to_rownames("Gene")
+
+# Make the data in the order of the metadata
+# expression_df <- expression_df %>%
+  # dplyr::select(metadata$refinebio_accession_code)
+
+# all.equal(colnames(expression_df), metadata$refinebio_accession_code)
+
+
+
+```
+
+```{r}
+# Log-scale the data and use HUGO symbols
+
+metadata_file <- "data/SRP125001/metadata_SRP125001.tsv"
+data_file <- "data/SRP125001/SRP125001.tsv"
+
+# Read in metadata TSV file
+metadata <- readr::read_tsv(metadata_file)
+
+# Read in data TSV file
+expression_df <- readr::read_tsv(data_file) %>%
+  # Tuck away the Gene ID column as row names
+  tibble::column_to_rownames("Gene")
+
+# Make the data in the order of the metadata
+expression_df <- expression_df %>%
+  dplyr::select(metadata$refinebio_accession_code)
+
+# Check if this is in the same order
+all.equal(colnames(expression_df), metadata$refinebio_accession_code)
+
+# Log scale the data frame
+expression_df_log <- expression_df %>%
+  # Apply log transformation to all columns except the "Gene" column
+  mutate(across(everything(), ~log(., base = 2)))
+```
+
+
+```{r}
+# Calculates the row variance of expression_df then grabs the top 5000.
+
+row_variances <- apply(expression_df_log, 1, var)
+sorted_indices <- order(row_variances, decreasing = TRUE)
+sorted_indices<- sorted_indices[1:5000]
+top_5000_variances <- row_variances[sorted_indices]
+
+top_5000_genes_var <- expression_df_log[sorted_indices,]
+
+```
+
+```{r}
+# This is calculated using MAD (median absolute deviation).
+# I would use this because this was found in a tutorial for ConsensusClusterPlus where the 5,000 most varaible
+# genes were gathered.
+
+mads=apply(expression_df_log,1,mad)
+top_5000_genes_mads=expression_df_log[rev(order(mads))[1:5000],]
+
+
+```
+
+```{r}
+# Runs ConsensusClusterPlus. 
+# Don't know how to save the plots, so just did it manually
+
+top_5000_genes_mads_matrix <- as.matrix(top_5000_genes_mads)
+
+title="/Plots/assignment3"
+results = ConsensusClusterPlus(
+  top_5000_genes_mads_matrix, 
+  maxK=10,
+  reps=50,
+  pItem=0.8,
+  pFeature=1, 
+  title=title,
+  clusterAlg="hc",
+  distance="pearson",
+  seed=1262118388.71279
+  )
+```
+
+
+```{r}
+# Ran hclust and plotted it.
+# Don't know if this is correct.
+top_5000_genes_mads_matrix <- t(top_5000_genes_mads_matrix)
+
+png("Plots/assignment3/hclust_dendrogram_log.png")
+
+distance_matrix <- dist(top_5000_genes_mads_matrix, method = "euclidean")
+hierarchical_result <- hclust(distance_matrix, method = "complete")
+par(cex=0.8)
+plot(hierarchical_result, hang = -1, main = "Hierarchical Clustering Dendrogram (5000 genes)")
+
+dev.off()
+# reduced label size
+par(cex=0.8)
+
+plot(hierarchical_result, hang = -1, main = "Hierarchical Clustering Dendrogram (5000 genes)")
+
+```
+
+```{r}
+# PAM Clustering
+
+
+# k=3
+png("Plots/assignment3/PAM_cluster_k3_log.png")
+PAM_cluster_3 <- pam(top_5000_genes_mads_matrix, 3, metric="euclidean", stand=FALSE)
+fviz_cluster(PAM_cluster_3, data = top_5000_genes_mads_matrix, geom="point", main="PAM Clustering for k = 3 (5000 genes)")
+dev.off()
+fviz_cluster(PAM_cluster_3, data = top_5000_genes_mads_matrix, geom="point", main="PAM Clustering for k = 3 (5000 genes)")
+
+# k=5
+png("Plots/assignment3/PAM_cluster_k5_log.png")
+PAM_cluster_5 <- pam(top_5000_genes_mads_matrix, 5, metric="euclidean", stand=FALSE)
+fviz_cluster(PAM_cluster_5, data = top_5000_genes_mads_matrix, geom="point", main="PAM Clustering for k = 5 (5000 genes)")
+dev.off()
+fviz_cluster(PAM_cluster_5, data = top_5000_genes_mads_matrix, geom="point", main="PAM Clustering for k = 5 (5000 genes)")
+
+
+# k=10
+png("Plots/assignment3/PAM_cluster_k10_log.png")
+PAM_cluster_10 <- pam(top_5000_genes_mads_matrix, 10, metric="euclidean", stand=FALSE)
+fviz_cluster(PAM_cluster_10, data = top_5000_genes_mads_matrix, geom="point", main="PAM Clustering for k = 10 (5000 genes)")
+dev.off()
+fviz_cluster(PAM_cluster_10, data = top_5000_genes_mads_matrix, geom="point", main="PAM Clustering for k = 10 (5000 genes)")
+
+
+```
+
+```{r}
+# Top Variances for top 10, 100, etc.
+
+mads=apply(expression_df_log,1,mad)
+top_10_genes_mads=expression_df_log[rev(order(mads))[1:10],]
+top_100_genes_mads=expression_df_log[rev(order(mads))[1:100],]
+top_1000_genes_mads=expression_df_log[rev(order(mads))[1:1000],]
+top_10000_genes_mads=expression_df_log[rev(order(mads))[1:10000],]
+
+```
+
+```{r}
+# Runs ConsensusClusterPlus on the different number of genes.
+
+top_10_genes_mads_matrix <- as.matrix(top_10_genes_mads)
+results = ConsensusClusterPlus(
+  top_10_genes_mads_matrix, 
+  maxK=5,
+  reps=50,
+  pItem=0.8,
+  pFeature=1, 
+  title=title,
+  clusterAlg="hc",
+  distance="pearson",
+  seed=1262118388.71279
+  )
+
+```
+
+```{r}
+
+top_100_genes_mads_matrix <- as.matrix(top_100_genes_mads)
+results = ConsensusClusterPlus(
+  top_100_genes_mads_matrix, 
+  maxK=5,
+  reps=50,
+  pItem=0.8,
+  pFeature=1, 
+  title=title,
+  clusterAlg="hc",
+  distance="pearson",
+  seed=1262118388.71279
+  )
+```
+
+
+```{r}
+
+top_1000_genes_mads_matrix <- as.matrix(top_1000_genes_mads)
+results = ConsensusClusterPlus(
+  top_1000_genes_mads_matrix, 
+  maxK=5,
+  reps=50,
+  pItem=0.8,
+  pFeature=1, 
+  title=title,
+  clusterAlg="hc",
+  distance="pearson",
+  seed=1262118388.71279
+  )
+```
+
+```{r}
+
+top_10000_genes_mads_matrix <- as.matrix(top_10000_genes_mads)
+results = ConsensusClusterPlus(
+  top_10000_genes_mads_matrix, 
+  maxK=5,
+  reps=50,
+  pItem=0.8,
+  pFeature=1, 
+  title=title,
+  clusterAlg="hc",
+  distance="pearson",
+  seed=1262118388.71279
+  )
+
+```
+
+```{r}
+# Runs hclust on the different number of genes.
+top_10_genes_mads_matrix <- t(top_10_genes_mads_matrix)
+top_100_genes_mads_matrix <- t(top_100_genes_mads_matrix)
+top_1000_genes_mads_matrix <- t(top_1000_genes_mads_matrix)
+top_10000_genes_mads_matrix <- t(top_10000_genes_mads_matrix)
+
+
+# 10 Genes
+png("Plots/assignment3/hclust_dendrogram_10.png")
+distance_matrix <- dist(top_10_genes_mads_matrix, method = "euclidean")
+hierarchical_result_10 <- hclust(distance_matrix, method = "complete")
+par(cex=0.8)
+plot(hierarchical_result_10, hang = -1, main = "Hierarchical Clustering Dendrogram (10 Genes)")
+dev.off()
+par(cex=0.8)
+plot(hierarchical_result_10, hang = -1, main = "Hierarchical Clustering Dendrogram (10 Genes)")
+
+
+# 100 Genes
+png("Plots/assignment3/hclust_dendrogram_100.png")
+distance_matrix <- dist(top_100_genes_mads_matrix, method = "euclidean")
+hierarchical_result_100 <- hclust(distance_matrix, method = "complete")
+par(cex=0.8)
+plot(hierarchical_result_100, hang = -1, main = "Hierarchical Clustering Dendrogram (100 Genes)")
+dev.off()
+par(cex=0.8)
+plot(hierarchical_result_100, hang = -1, main = "Hierarchical Clustering Dendrogram (100 Genes)")
+
+
+# 1000 Genes
+png("Plots/assignment3/hclust_dendrogram_1000.png")
+distance_matrix <- dist(top_1000_genes_mads_matrix, method = "euclidean")
+hierarchical_result_1000 <- hclust(distance_matrix, method = "complete")
+par(cex=0.8)
+plot(hierarchical_result_1000, hang = -1, main = "Hierarchical Clustering Dendrogram (1000 Genes)")
+dev.off()
+par(cex=0.8)
+plot(hierarchical_result_1000, hang = -1, main = "Hierarchical Clustering Dendrogram (1000 Genes)")
+
+
+# 10000 Genes
+png("Plots/assignment3/hclust_dendrogram_10000.png")
+distance_matrix <- dist(top_10000_genes_mads_matrix, method = "euclidean")
+hierarchical_result_10000 <- hclust(distance_matrix, method = "complete")
+par(cex=0.8)
+plot(hierarchical_result_10000, hang = -1, main = "Hierarchical Clustering Dendrogram (10000 Genes)")
+dev.off()
+par(cex=0.8)
+plot(hierarchical_result_10000, hang = -1, main = "Hierarchical Clustering Dendrogram (10000 Genes)")
+
+
+
+```
+
+
+```{r}
+# Pam Clustering with different number of genes.
+
+# 10 Genes.
+png("Plots/assignment3/PAM_cluster_k5_10.png")
+PAM_cluster_10genes <- pam(top_10_genes_mads_matrix, 5, metric="euclidean", stand=FALSE)
+fviz_cluster(PAM_cluster_10genes, data = top_10_genes_mads_matrix, geom="point", 
+             main="PAM Clustering for k = 5 (10 genes)")
+dev.off()
+fviz_cluster(PAM_cluster_10genes, data = top_10_genes_mads_matrix, geom="point", 
+             main="PAM Clustering for k = 5 (10 genes)")
+fviz_cluster(PAM_cluster_10, data = top_5000_genes_mads_matrix, geom="point", main="PAM Clustering for k = 10 (5000 genes)")
+
+
+# 100 Genes.
+png("Plots/assignment3/PAM_cluster_k5_100.png")
+PAM_cluster_100genes <- pam(top_100_genes_mads_matrix, 5, metric="euclidean", stand=FALSE)
+fviz_cluster(PAM_cluster_100genes, data = top_100_genes_mads_matrix, geom="point", 
+             main="PAM Clustering for k = 5 (100 genes)")
+dev.off()
+fviz_cluster(PAM_cluster_100genes, data = top_100_genes_mads_matrix, geom="point", 
+             main="PAM Clustering for k = 5 (100 genes)")
+
+
+# 1000 Genes.
+png("Plots/assignment3/PAM_cluster_k5_1000.png")
+PAM_cluster_1000genes <- pam(top_1000_genes_mads_matrix, 5, metric="euclidean", stand=FALSE)
+fviz_cluster(PAM_cluster_1000genes, data = top_1000_genes_mads_matrix, geom="point", 
+             main="PAM Clustering for k = 5 (1000 genes)")
+dev.off()
+fviz_cluster(PAM_cluster_1000genes, data = top_1000_genes_mads_matrix, geom="point", 
+             main="PAM Clustering for k = 5 (1000 genes)")
+
+
+# 10000 Genes.
+png("Plots/assignment3/PAM_cluster_k5_10000.png")
+PAM_cluster_10000genes <- pam(top_10000_genes_mads_matrix, 5, metric="euclidean", stand=FALSE)
+fviz_cluster(PAM_cluster_10000genes, data = top_10000_genes_mads_matrix, geom="point", 
+             main="PAM Clustering for k = 5 (10000 genes)")
+dev.off()
+fviz_cluster(PAM_cluster_10000genes, data = top_10000_genes_mads_matrix, geom="point", 
+             main="PAM Clustering for k = 5 (10000 genes)")
+
+```
+
+
+```{r}
+# Trying to make alluvial plot based on the PAM clustering.
+# This concept does not even make sense because assignment to each cluster is arbitrary anyways.
+
+
+# Sets up and creates the data frame used for alluvial plotting.
+# Uses percentage of clustering frequency.
+gene_count <- c()
+for(i in 1:5){gene_count <- c(gene_count, "10000")}
+for(i in 1:5){gene_count <- c(gene_count, "1000")}
+for(i in 1:5){gene_count <- c(gene_count, "100")}
+for(i in 1:5){gene_count <- c(gene_count, "10")}
+
+cluster_num <- c()
+for(i in 1:4){cluster_num <- c("1", "2", "3", "4", "5")}
+
+cluster_frequency <- c(unlist(lapply(PAM_cluster_10000genes$clusinfo[,1], function(x) x / 60)), 
+                       unlist(lapply(PAM_cluster_1000genes$clusinfo[,1], function(x) x / 60)), 
+                       unlist(lapply(PAM_cluster_100genes$clusinfo[,1], function(x) x / 60)), 
+                       unlist(lapply(PAM_cluster_10genes$clusinfo[,1], function(x) x / 60))
+                       )
+
+alluvial_df <- data.frame(GeneCount = gene_count, 
+                          ClusterNumber = cluster_num, 
+                          ClusterFrequencyPercentage = cluster_frequency)
+
+
+```
+
+
+```{r}
+# Alluvial Plot based on PAM clustering.
+ggplot(as.data.frame(alluvial_df),
+       aes(y = ClusterFrequencyPercentage, axis1 = GeneCount, axis2 = ClusterNumber, fill = ClusterNumber)) +
+  geom_alluvium(width = 1/12) +
+  geom_stratum(width = 1/12, color = "grey") +
+  geom_text(stat = "stratum", aes(label = after_stat(stratum))) +
+  scale_x_discrete(limits = c("Gene Count", "Cluster Number"), expand = c(.05, .05)) +
+  scale_fill_brewer(type = "qual", palette = "Set1") +
+  ggtitle("PAM Clustering Frequency Distribution for k = 5")
+
+ggsave("Plots/assignment3/PAM_alluvial_plot.png", plot = last_plot(), width = 8, height = 6, units = "in", dpi = 300)
+```
+
+```{r}
+# K Means
+
+# Finding Optimal K
+
+png("Plots/assignment3/K_Means_Elbow_Method.png")
+fviz_nbclust(top_5000_genes_mads_matrix, FUNcluster = kmeans, method = "wss")
+dev.off()
+fviz_nbclust(top_5000_genes_mads_matrix, FUNcluster = kmeans, method = "wss")
+
+png("Plots/assignment3/K_Means_Silhouette_Method.png")
+fviz_nbclust(top_5000_genes_mads_matrix, FUNcluster = kmeans, method = "silhouette")
+dev.off()
+fviz_nbclust(top_5000_genes_mads_matrix, FUNcluster = kmeans, method = "silhouette")
+
+
+```
+
+```{r}
+# K Means - Creating Clusters
+
+km.res2.5000 <- kmeans(top_5000_genes_mads_matrix, centers = 2, nstart = 25)
+
+km.res3.5000 <- kmeans(top_5000_genes_mads_matrix, centers = 3, nstart = 25)
+
+km.res4.5000 <- kmeans(top_5000_genes_mads_matrix, centers = 4, nstart = 25)
+
+
+```
+
+```{r}
+# K Means - Plotting Clusters
+
+png("Plots/assignment3/K_Means_5000_2.png")
+fviz_cluster(km.res2.5000, data = top_5000_genes_mads_matrix, geom="point")
+dev.off()
+fviz_cluster(km.res2.5000, data = top_5000_genes_mads_matrix, geom="point")
+
+png("Plots/assignment3/K_Means_5000_3.png")
+fviz_cluster(km.res3.5000, data = top_5000_genes_mads_matrix, geom="point")
+dev.off()
+fviz_cluster(km.res3.5000, data = top_5000_genes_mads_matrix, geom="point")
+
+
+png("Plots/assignment3/K_Means_5000_4.png")
+fviz_cluster(km.res4.5000, data = top_5000_genes_mads_matrix, geom="point")
+dev.off()
+fviz_cluster(km.res4.5000, data = top_5000_genes_mads_matrix, geom="point")
+
+```
+
+
+```{r}
+# K Means - Creating Clusters w/ Varied Number of Genes
+
+km.res3.10 <- kmeans(top_10_genes_mads_matrix, centers = 3, nstart = 25)
+
+km.res3.100 <- kmeans(top_100_genes_mads_matrix, centers = 3, nstart = 25)
+
+km.res3.1000 <- kmeans(top_1000_genes_mads_matrix, centers = 3, nstart = 25)
+
+km.res3.10000 <- kmeans(top_10000_genes_mads_matrix, centers = 3, nstart = 25)
+
+```
+
+```{r}
+# K Means - Plotting Clusters w/ Varied Number of Genes
+
+png("Plots/assignment3/K_Means_10.png")
+fviz_cluster(km.res3.10, data = top_10_genes_mads_matrix, geom="point")
+dev.off()
+fviz_cluster(km.res3.10, data = top_10_genes_mads_matrix, geom="point")
+
+png("Plots/assignment3/K_Means_100.png")
+fviz_cluster(km.res3.100, data = top_100_genes_mads_matrix, geom="point")
+dev.off()
+fviz_cluster(km.res3.100, data = top_100_genes_mads_matrix, geom="point")
+
+png("Plots/assignment3/K_Means_1000.png")
+fviz_cluster(km.res3.1000, data = top_1000_genes_mads_matrix, geom="point")
+dev.off()
+fviz_cluster(km.res3.1000, data = top_1000_genes_mads_matrix, geom="point")
+
+png("Plots/assignment3/K_Means_10000.png")
+fviz_cluster(km.res3.10000, data = top_10000_genes_mads_matrix, geom="point")
+dev.off()
+fviz_cluster(km.res3.10000, data = top_10000_genes_mads_matrix, geom="point")
+
+```
+
+
+```{r}
+# Alluvial Plot based on K-Means clustering
+
+gene_count_k_means <- c()
+for(i in 1:3){gene_count_k_means <- c(gene_count_k_means, "10000")}
+for(i in 1:3){gene_count_k_means <- c(gene_count_k_means, "1000")}
+for(i in 1:3){gene_count_k_means <- c(gene_count_k_means, "100")}
+for(i in 1:3){gene_count_k_means <- c(gene_count_k_means, "10")}
+
+cluster_num_k_means <- c()
+for(i in 1:4){cluster_num_k_means <- c("1", "2", "3")}
+
+cluster_frequency_k_means <- as.vector(table(km.res3.10000$cluster)/60)
+
+cluster_frequency_k_means <- append(cluster_frequency_k_means, as.vector(table(km.res3.1000$cluster)/60))
+
+cluster_frequency_k_means <- append(cluster_frequency_k_means, as.vector(table(km.res3.100$cluster)/60))
+
+cluster_frequency_k_means <- append(cluster_frequency_k_means, as.vector(table(km.res3.10$cluster)/60))
+
+gene_count_k_means
+
+cluster_num_k_means
+
+cluster_frequency_k_means
+
+
+```
+
+```{r}
+alluvial_df_k_means <- data.frame(GeneCount = gene_count_k_means, 
+                          ClusterNumber = cluster_num_k_means, 
+                          ClusterFrequencyPercentage = cluster_frequency_k_means)
+
+ggplot(as.data.frame(alluvial_df_k_means),
+       aes(y = ClusterFrequencyPercentage, axis1 = GeneCount, axis2 = ClusterNumber, fill = ClusterNumber)) +
+  geom_alluvium(width = 1/12) +
+  geom_stratum(width = 1/12, color = "grey") +
+  geom_text(stat = "stratum", aes(label = after_stat(stratum))) +
+  scale_x_discrete(limits = c("Gene Count", "Cluster Number"), expand = c(.05, .05)) +
+  scale_fill_brewer(type = "qual", palette = "Set1") +
+  ggtitle("K-Means Clustering Frequency Distribution for k = 3")
+
+ggsave("Plots/assignment3/K_Means_Alluvial_Plot.png", plot = last_plot(), width = 8, height = 6, units = "in", dpi = 300)
+
+```
+
+```{r}
+gene_count_hclust <- rep(c("10000", "1000", "100", "10"), each = 5)
+cluster_num_hclust <- rep(1:5, times = 4)
+
+# Calculate the cluster frequencies
+clusters_10 <- cutree(hierarchical_result_10, k = 5)
+clusters_100 <- cutree(hierarchical_result_100, k = 5)
+clusters_1000 <- cutree(hierarchical_result_1000, k = 5)
+clusters_10000 <- cutree(hierarchical_result_10000, k = 5)
+cluster_frequency_hclust <- as.vector(table(c(clusters_10000, clusters_1000, clusters_100, clusters_10)) / 60)
+
+# Create a data frame with the information
+data <- data.frame(
+  GeneCount = gene_count_hclust,
+  ClusterNumber = factor(as.character(cluster_num_hclust)),  # Convert to factor
+  ClusterFrequency = cluster_frequency_hclust
+)
+
+```
+
+```{r}
+
+# Create the alluvial plot
+alluvial_plot <- ggplot(data, aes(y = ClusterFrequency, axis1 = GeneCount, axis2 = ClusterNumber, fill = ClusterNumber)) +
+  geom_alluvium(width = 1/12) +
+  geom_stratum(width = 1/12, color = "grey") +
+  geom_text(stat = "stratum", aes(label = after_stat(stratum))) +
+  scale_x_discrete(limits = c("Gene Count", "Cluster Number"), expand = c(.05, .05)) +
+  scale_fill_brewer(type = "qual", palette = "Set1") +
+  ggtitle("Hierarchical Clustering Frequency Distribution for k = 5")
+
+ggsave("Plots/assignment3/Hclust_Alluvial_Plot.png", plot = last_plot(), width = 8, height = 6, units = "in", dpi = 300)
+```
+
+```{r}
+# Combining cancer and cancer-adjacent under "Cancer" group
+metadata$Group <- ifelse(grepl("Lung_tumor", metadata$refinebio_title), "Cancer", "Non-Cancer")
+```
+
+```{r}
+km_assignments <- km.res3.5000$cluster
+hclust_assignments <- cutree(hierarchical_result, k = 5)
+pam_assignments <- PAM_cluster_5$clustering
+```
+
+```{r}
+metadata$KMeans <- km_assignments
+metadata$HClust <- hclust_assignments
+metadata$PAMCluster <- pam_assignments
+
+```
+
+
+```{r}
+# Define the annotation data
+annotation_data <- data.frame(
+  KMeansCluster = metadata$KMeans,
+  PAMCluster = metadata$PAMCluster,
+  HierarchicalCluster = metadata$HClust,
+  SampleGroups = metadata$Group
+)
+
+png("Plots/assignment3/heatmap_clust_annotations_2.png", width = 800, height = 800)
+
+# Create the heatmap
+heatmap <- pheatmap(
+  t(top_5000_genes_mads_matrix),
+  annotation_col = annotation_data,
+  show_rownames = FALSE,
+  cluster_cols = TRUE,
+  cluster_rows = TRUE,
+  scale = "none",
+  main = "Heatmap with Clustering Annotations for k = 5"
+)
+
+# Save the heatmap along with annotations
+print(heatmap)
+dev.off()
+```
+```{r}
+
+# 5000 genes
+metadata$KMeans2_5000 <- km.res2.5000$cluster
+metadata$HClust3_5000 <- cutree(hierarchical_result, k = 3)
+metadata$PAMCluster3_5000 <- PAM_cluster_3$clustering
+
+metadata$KMeans3_5000 <- km.res3.5000$cluster
+metadata$HClust5_5000 <- cutree(hierarchical_result, k = 5)
+metadata$PAMCluster5_5000 <- PAM_cluster_5$clustering
+
+metadata$KMeans4_5000 <- km.res4.5000$cluster
+metadata$HClust10_5000 <- cutree(hierarchical_result, k = 10)
+metadata$PAMCluster10_5000 <- PAM_cluster_10$clustering
+
+# 10 genes
+metadata$KMeans3_10 <- km.res3.10$cluster
+metadata$HClust5_10 <- cutree(hierarchical_result_10, k = 5)
+metadata$PAMCluster5_10 <- PAM_cluster_10genes$clustering
+
+# 100 genes
+metadata$KMeans3_100 <- km.res3.100$cluster
+metadata$HClust5_100 <- cutree(hierarchical_result_100, k = 5)
+metadata$PAMCluster5_100 <- PAM_cluster_100genes$clustering
+
+# 1000 genes
+metadata$KMeans3_1000 <- km.res3.1000$cluster
+metadata$HClust5_1000 <- cutree(hierarchical_result_1000, k = 5)
+metadata$PAMCluster5_1000 <- PAM_cluster_1000genes$clustering
+
+# 10000 genes
+metadata$KMeans3_10000 <- km.res3.10000$cluster
+metadata$HClust5_10000 <- cutree(hierarchical_result_10000, k = 5)
+metadata$PAMCluster5_10000 <- PAM_cluster_10000genes$clustering
+```
+
+```{r}
+
+# Create a function to perform a chi-squared test
+perform_chi_squared_test <- function(data, cluster_column, group_column) {
+  contingency_table <- table(data[[cluster_column]], data[[group_column]])
+  chi_squared_result <- chisq.test(contingency_table)
+  return(chi_squared_result)
+}
+
+# Perform chi-squared tests for each clustering result
+clustering_results <- list(
+  KMeans2_5000 = perform_chi_squared_test(metadata, "KMeans2_5000", "Group"),
+  KMeans3_5000 = perform_chi_squared_test(metadata, "KMeans3_5000", "Group"),
+  KMeans4_5000 = perform_chi_squared_test(metadata, "KMeans4_5000", "Group"),
+  KMeans3_10 = perform_chi_squared_test(metadata, "KMeans3_10", "Group"),
+  KMeans3_100 = perform_chi_squared_test(metadata, "KMeans3_100", "Group"),
+  KMeans3_1000 = perform_chi_squared_test(metadata, "KMeans3_1000", "Group"),
+  KMeans3_10000 = perform_chi_squared_test(metadata, "KMeans3_10000", "Group"),
+  HClust3_5000 = perform_chi_squared_test(metadata, "HClust3_5000", "Group"),
+  HClust5_5000 = perform_chi_squared_test(metadata, "HClust5_5000", "Group"),
+  HClust10_5000 = perform_chi_squared_test(metadata, "HClust10_5000", "Group"),
+  HClust5_10 = perform_chi_squared_test(metadata, "HClust5_10", "Group"),
+  HClust5_100 = perform_chi_squared_test(metadata, "HClust5_100", "Group"),
+  HClust5_1000 = perform_chi_squared_test(metadata, "HClust5_1000", "Group"),
+  HClust5_10000 = perform_chi_squared_test(metadata, "HClust5_10000", "Group"),
+  PAMCluster3_5000 = perform_chi_squared_test(metadata, "PAMCluster3_5000", "Group"),
+  PAMCluster5_5000 = perform_chi_squared_test(metadata, "PAMCluster5_5000", "Group"),
+  PAMCluster10_5000 = perform_chi_squared_test(metadata, "PAMCluster10_5000", "Group"),
+  PAMCluster5_10 = perform_chi_squared_test(metadata, "PAMCluster5_10", "Group"),
+  PAMCluster5_100 = perform_chi_squared_test(metadata, "PAMCluster5_100", "Group"),
+  PAMCluster5_1000 = perform_chi_squared_test(metadata, "PAMCluster5_1000", "Group"),
+  PAMCluster5_10000 = perform_chi_squared_test(metadata, "PAMCluster5_10000", "Group")
+)
+
+# Extract p-values from the chi-squared test results
+p_values <- sapply(clustering_results, function(result) result$p.value)
+
+# Adjust p-values for multiple hypothesis testing
+adjusted_p_values <- p.adjust(p_values, method = "bonferroni")
+
+# Create a table with statistical test results
+test_results <- data.frame(
+  Clustering_Method = names(clustering_results),
+  P_Value = p_values,
+  Adjusted_P_Value = adjusted_p_values
+)
+
+# Print the table
+print(test_results)
+```
+
