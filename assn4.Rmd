@@ -24,6 +24,7 @@ library(ggplot2)
 library(dplyr)
 library(factoextra)
 library(randomForest)
+library(pheatmap)
 
 
 ```
@@ -79,7 +80,7 @@ top_10000_genes=expression_df_log[rev(order(mads))[1:10000],]
 
 # transposes the data
 transposed_df <- t(top_5000_genes_mads)
-transposed_df <- as.data.frame(df_transposed)
+transposed_df <- as.data.frame(transposed_df)
 
 # adds a new column containing the labels (lung tumor, tumor adjacent, control).
 transposed_df$Labels <- metadata$refinebio_title[match(rownames(transposed_df), metadata$refinebio_accession_code)]
@@ -115,9 +116,9 @@ rf
 result <- data.frame(testing_df$Labels, predict(rf, testing_df, type="response"))
 
 png("Plots/assignment4/randomForestTestingPlot.png")
-plot(result)
+plot(result, main="Random Forest Prediction with 5000 Genes", ylab="Probability", xlab="Categories")
 dev.off()
-plot(result)
+plot(result, main="Random Forest Prediction with 5000 Genes", ylab="Probability", xlab="Categories")
 
 ```
 
@@ -135,7 +136,6 @@ top_10_percent_genes_randomForest <- sorted_genes_by_importance[1:top_10_percent
 top_10_percent_genes_randomForest
 
 ```
-
 
 ```{r}
 # Creates transpose df of 10 to 10000 genes, with labels
@@ -188,9 +188,9 @@ rf
 # predicts, then saves the outcome
 result <- data.frame(testing_df$Labels, predict(rf, testing_df, type="response"))
 png("Plots/assignment4/randomForestTestingPlot_10genes.png")
-plot(result)
+plot(result, main="Random Forest Prediction with 10 Genes", ylab="Probability", xlab="Categories")
 dev.off()
-plot(result)
+plot(result, main="Random Forest Prediction with 10 Genes", ylab="Probability", xlab="Categories")
 
 # top 10% most impactful genes
 importance_data <- rf$importance
@@ -202,6 +202,8 @@ randomForest_10genes_impactful <- sorted_genes_by_importance[1:top_10_percent, ]
 randomForest_10genes_impactful
 
 ```
+
+
 
 ```{r}
 # randomForest on 100 genes
@@ -215,9 +217,9 @@ rf
 # predicts, then saves the outcome
 result <- data.frame(testing_df$Labels, predict(rf, testing_df, type="response"))
 png("Plots/assignment4/randomForestTestingPlot_100genes.png")
-plot(result)
+plot(result, main="Random Forest Prediction with 100 Genes", ylab="Probability", xlab="Categories")
 dev.off()
-plot(result)
+plot(result, main="Random Forest Prediction with 100 Genes", ylab="Probability", xlab="Categories")
 
 # top 10% most impactful genes
 importance_data <- rf$importance
@@ -242,9 +244,9 @@ rf
 # predicts, then saves the outcome
 result <- data.frame(testing_df$Labels, predict(rf, testing_df, type="response"))
 png("Plots/assignment4/randomForestTestingPlot_1000genes.png")
-plot(result)
+plot(result, main="Random Forest Prediction with 1000 Genes", ylab="Probability", xlab="Categories")
 dev.off()
-plot(result)
+plot(result, main="Random Forest Prediction with 1000 Genes", ylab="Probability", xlab="Categories")
 
 # top 10% most impactful genes
 importance_data <- rf$importance
@@ -269,9 +271,9 @@ rf
 # predicts, then saves the outcome
 result <- data.frame(testing_df$Labels, predict(rf, testing_df, type="response"))
 png("Plots/assignment4/randomForestTestingPlot_10000genes.png")
-plot(result)
+plot(result, main="Random Forest Prediction with 10000 Genes", ylab="Probability", xlab="Categories")
 dev.off()
-plot(result)
+plot(result, main="Random Forest Prediction with 10000 Genes", ylab="Probability", xlab="Categories")
 
 # top 10% most impactful genes
 importance_data <- rf$importance
@@ -285,6 +287,95 @@ randomForest_10000genes_impactful
 ```
 
 
+```{r}
+# Random Forest
+# What percent of impactful genes are in the impactful genes of the 10000 sample?
+
+# Get the row names from all three data sets
+row_names_10genes <- rownames(randomForest_10genes_impactful)
+row_names_100genes <- rownames(randomForest_100genes_impactful)
+row_names_1000genes <- rownames(randomForest_100genes_impactful)
+row_names_5000genes <- rownames(top_10_percent_genes_randomForest)
+row_names_10000genes <- rownames(randomForest_10000genes_impactful)
+
+# Calculate the percentages for both 10 genes and 100 genes
+percentage_10genes <- (length(intersect(row_names_10genes, row_names_10000genes)) / 
+                         length(row_names_10genes)) * 100
+percentage_100genes <- (length(intersect(row_names_100genes, row_names_10000genes)) / 
+                          length(row_names_100genes)) * 100
+percentage_1000genes <- (length(intersect(row_names_1000genes, row_names_10000genes)) /
+                           length(row_names_1000genes)) * 100
+percentage_5000genes <- (length(intersect(row_names_5000genes, row_names_10000genes)) /
+                           length(row_names_5000genes)) * 100
+
+
+# Create a data frame to store the percentages
+percentages_df <- data.frame(
+  Dataset = c("10 Genes", "100 Genes", "1000 Genes", "5000 Genes"),
+  Percentage = c(percentage_10genes, percentage_100genes, percentage_1000genes, percentage_5000genes)
+)
+
+png("Plots/assignment4/randomForest_overlap_chart.png")
+
+# Create a histogram
+barplot(percentages_df$Percentage, 
+        names.arg = percentages_df$Dataset, 
+        col = "lightblue", 
+        main = "Impact Genes Overlap Compared to 10000 Sample", 
+        xlab = "Sample Name",
+        ylab = "Overlap Percentage")
+
+dev.off()
+
+barplot(percentages_df$Percentage, 
+        names.arg = percentages_df$Dataset, 
+        col = "lightblue", 
+        main = "Impact Genes Overlap Compared to 10000 Sample", 
+        xlab = "Sample Name",
+        ylab = "Overlap Percentage")
+
+
+```
+
+```{r}
+# filters the impactful genes from the data set
+common_row_names <- intersect(rownames(randomForest_10000genes_impactful), rownames(expression_df))
+filtered_expression_df <- expression_df[common_row_names, ]
+
+# reads in meta data with rowname already set
+metadata_withRowNames <- readr::read_tsv(metadata_file) %>%
+  tibble::column_to_rownames("refinebio_accession_code")
+
+# creates the annotation data frame
+annotation <- metadata_withRowNames[c("refinebio_title")]
+annotation$refinebio_title <- ifelse(grepl("^Control", annotation$refinebio_title), "Control",
+              ifelse(grepl("^Lung_tumor_", annotation$refinebio_title), "TumorAdjacent",
+              ifelse(grepl("^Lung_tumor ", annotation$refinebio_title), "Tumor", annotation$refinebio_title)))
+names(annotation)[names(annotation) == "refinebio_title"] <- "SampleGroup"
+
+```
+
+
+```{r}
+# Heat map of randomForest with the 10000 genes sample
+
+png("Plots/assignment4/heatmap_randomForest_10000genes.png")
+
+# Create the heatmap
+heatmap <- pheatmap(
+  filtered_expression_df,
+  annotation_col = annotation,
+  show_rownames = FALSE,
+  cluster_cols = TRUE,
+  cluster_rows = TRUE,
+  scale = "none",
+  main = "Random Forest Impactful Genes"
+)
+
+print(heatmap)
+dev.off()
+
+```
 
 
 
