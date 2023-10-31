@@ -109,6 +109,17 @@ rf
 
 ```
 
+```{r}
+# Saves the error tree of the random forest
+
+png("Plots/assignment4/randomForest_plot_5000genes.png")
+plot(rf, main="Random Forest OOB Error Plot")
+dev.off()
+plot(rf, main="Random Forest OOB Error Plot")
+
+
+```
+
 
 ```{r}
 # tests on the predictive model
@@ -369,7 +380,7 @@ heatmap <- pheatmap(
   cluster_cols = TRUE,
   cluster_rows = TRUE,
   scale = "none",
-  main = "Random Forest Impactful Genes"
+  main = "Random Forest Impactful Genes",
 )
 
 print(heatmap)
